@@ -1,0 +1,14 @@
+Prefix:
+Environment description:
+In a 2D airspace, I have multiple on-board intelligent agent controlling aircraft, each agent is capable of making their own decision, through a change in acceleration in x and y-axis direction. The goal of every agent is to reach their individual goal while avoid conflict with other agent as well as obstacles. However, each agent has a limited detection range, meaning they can only observe the state of other agent when other agent is within its detection range.
+
+Agent state transition description:
+
+Task description:
+Your job is to select an
+
+
+Example output:
+
+
+
