@@ -70,8 +70,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    # use_wanDB = False
-    use_wanDB = True
+    use_wanDB = False
+    # use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -328,17 +328,17 @@ def main(args):
     if args.mode == "eval":
         # args.max_episodes = 10  # only evaluate one episode during evaluation mode.
         # args.max_episodes = 15  # only evaluate one episode during evaluation mode.
-        # args.max_episodes = 100
+        args.max_episodes = 100
         # args.max_episodes = 50
         # args.max_episodes = 1
         # args.max_episodes = 250
-        args.max_episodes = 25
+        # args.max_episodes = 25
         # pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\chapter_5_5_3cL_randomOD_16000'
         # pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
-        pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4AC_1cL_random_sg_route_17000_gif_record'
+        pre_fix = r'D:\MADDPG_2nd_jp\221124_17_06_22_interval_record_eps\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
-        episode_to_check = str(17000)
+        episode_to_check = str(1000)
         model_list = []
         if full_observable_critic_flag:
             for i in range(total_agentNum):
@@ -799,7 +799,7 @@ def main(args):
                             all_drone_reach = all_drone_reach + 1
                             # print("There are no True values in the list.")
 
-                    if episode % 5 == 0:  # every 100 episode we record the training performance (without evaluation)
+                    if episode % 1000 == 0:  # every 100 episode we record the training performance (without evaluation)
                         # if episode == 10:
                         # After the loop, save the file once
                         # writer.save()
@@ -888,11 +888,10 @@ def main(args):
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, \
-                next_actor_hiddens = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens, cur_agent_masks_record = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, env.all_agents, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record_aft_act = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(
@@ -1046,7 +1045,7 @@ def main(args):
 
                     # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=30)
                     # view_static_traj(env, trajectory_eachPlay, png_file_name)
-                    save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
+                    # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if get_evaluation_status:
                         if simply_view_evaluation:
                         # ------------------ static display trajectory ---------------------------- #
@@ -1218,7 +1217,7 @@ if __name__ == '__main__':
     # parser.add_argument('--memory_length', default=int(1e4), type=int)
     parser.add_argument('--seed', default=777, type=int)  # may choose to use 3407
     # parser.add_argument('--batch_size', default=2, type=int)  # original 512
-    parser.add_argument('--batch_size', default=10, type=int)  # original 512
+    parser.add_argument('--batch_size', default=512, type=int)  # original 512
     # parser.add_argument('--batch_size', default=3, type=int)  # original 512
     # parser.add_argument('--batch_size', default=1536, type=int)  # original 512
     parser.add_argument('--gamma', default=0.95, type=float)

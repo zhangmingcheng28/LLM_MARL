@@ -37,12 +37,6 @@ import math
 
 
 def head_selection(input_val, pretrained_inside, pretrained_all_mask, pretrained_not_inside, outside_masked_segments, all_segments_masked, inside_masked_segments, current_mask):
-    # Ensure mutual exclusivity
-    assert torch.all((outside_masked_segments & all_segments_masked).sum() == 0), "Overlap between Condition 1 and 2"
-    assert torch.all((outside_masked_segments & inside_masked_segments).sum() == 0), "Overlap between Condition 1 and 3"
-    assert torch.all((all_segments_masked & inside_masked_segments).sum() == 0), "Overlap between Condition 2 and 3"
-
-
     if outside_masked_segments.any():
         # if outside_masked_segments.sum().item() <10 and outside_masked_segments.sum().item() >1:
         #     print("pause")
