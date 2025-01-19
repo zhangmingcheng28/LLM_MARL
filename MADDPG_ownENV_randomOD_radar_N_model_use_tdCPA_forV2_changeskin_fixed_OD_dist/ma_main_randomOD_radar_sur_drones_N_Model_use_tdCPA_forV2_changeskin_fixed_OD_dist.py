@@ -13,11 +13,11 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
-from parameters_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import initialize_parameters
-from maddpg_agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import MADDPG
-from utils_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import *
-from grid_env_generation_newframe_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import env_generation
-from env_simulator_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import env_simulator
+from parameters_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import initialize_parameters
+from maddpg_agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import MADDPG
+from utils_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import *
+from grid_env_generation_newframe_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import env_generation
+from env_simulator_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import env_simulator
 from copy import deepcopy
 import torch
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ from shapely.strtree import STRtree
 from matplotlib.markers import MarkerStyle
 import math
 from matplotlib.transforms import Affine2D
-from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import *
+from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import *
 from collections import deque
 import csv
 
@@ -86,8 +86,8 @@ def main(args):
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    # evaluation_by_fixed_ar = False
+    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -1216,7 +1216,7 @@ if __name__ == '__main__':
     parser.add_argument('--scenario', default="simple_spread", type=str)
     parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--mode', default="train", type=str, help="train/eval")
     parser.add_argument('--episode_length', default=300, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode

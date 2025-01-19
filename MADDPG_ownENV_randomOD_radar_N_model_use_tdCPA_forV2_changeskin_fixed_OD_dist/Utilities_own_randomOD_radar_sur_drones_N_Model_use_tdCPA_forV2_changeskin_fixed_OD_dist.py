@@ -37,6 +37,81 @@ import random
 import math
 
 
+def line_circle_intersection(px, py, r, x1, y1, x2, y2):
+    """
+    Calculate the intersection points between a circle and a line segment.
+
+    Parameters:
+        px, py: The center of the circle.
+        r: The radius of the circle.
+        x1, y1: The coordinates of the first endpoint of the line segment.
+        x2, y2: The coordinates of the second endpoint of the line segment.
+
+    Returns:
+        A list of intersection points [(x, y)].
+    """
+    # Line equation in parametric form: (x, y) = (x1, y1) + t * (x2 - x1, y2 - y1)
+    dx = x2 - x1
+    dy = y2 - y1
+
+    # Substitute parametric line equation into the circle equation
+    a = dx ** 2 + dy ** 2
+    b = 2 * (dx * (x1 - px) + dy * (y1 - py))
+    c = (x1 - px) ** 2 + (y1 - py) ** 2 - r ** 2
+
+    # Calculate the discriminant
+    discriminant = b ** 2 - 4 * a * c
+
+    if discriminant < 0:
+        # No intersection
+        return []
+
+    # Two intersection points
+    sqrt_disc = np.sqrt(discriminant)
+    t1 = (-b - sqrt_disc) / (2 * a)
+    t2 = (-b + sqrt_disc) / (2 * a)
+
+    intersections = []
+
+    # Calculate the intersection points, if they lie within the segment
+    for t in [t1, t2]:
+        if 0 <= t <= 1:
+            x = x1 + t * dx
+            y = y1 + t * dy
+            intersections.append((x, y))
+
+    return intersections
+
+
+def circle_quadrilateral_intersection(px, py, r, quad_vertices):
+    """
+    Calculate all intersection points between a circle and the sides of a quadrilateral.
+
+    Parameters:
+        px, py: The center of the circle.
+        r: The radius of the circle.
+        quad_vertices: A list of 4 tuples representing the vertices of the quadrilateral [(x1, y1), (x2, y2), (x3, y3), (x4, y4)].
+
+    Returns:
+        A list of intersection points [(x, y)].
+    """
+    intersections = []
+
+    # Loop through each side of the quadrilateral
+    for i in range(4):
+        # Vertices of the current side
+        x1, y1 = quad_vertices[i]
+        x2, y2 = quad_vertices[(i + 1) % 4]
+
+        # Find intersections of the circle with the line segment
+        side_intersections = line_circle_intersection(px, py, r, x1, y1, x2, y2)
+
+        # Append valid intersection points
+        intersections.extend(side_intersections)
+
+    return intersections
+
+
 def tint_image(image, rgb_color):
     # Ensure the image is in RGBA mode
     image = image.convert("RGBA")
@@ -381,6 +456,67 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
         new_regions = []
 
         for region in possible_regions:
+            rxmin, rxmax, rymin, rymax = region  # available region
+
+            # Check if the no-fly zone intersects with the current region
+            # for intersection of the available region and no fly region, the corresponding x,y-range must overlap
+            # Meaning, along x-axis,
+            #           available region x value min must be less than no fly region's x-max
+            #           available region x value nax must be more than no fly region's x-min
+            # same for y-range, only all 4 condition is meet, we can say that available region has intersection with no fly region
+            if rxmin < no_fly_xmax and rxmax > no_fly_xmin and rymin < no_fly_ymax and rymax > no_fly_ymin:
+                # Split the region into parts that are outside the no-fly zone
+                if rxmin < no_fly_xmin:
+                    new_regions.append((rxmin, no_fly_xmin, rymin, rymax))  # Left part
+                if rxmax > no_fly_xmax:
+                    new_regions.append((no_fly_xmax, rxmax, rymin, rymax))  # Right part
+                if rymin < no_fly_ymin:
+                    new_regions.append(
+                        (max(rxmin, no_fly_xmin), min(rxmax, no_fly_xmax), rymin, no_fly_ymin))  # Bottom part
+                if rymax > no_fly_ymax:
+                    new_regions.append(
+                        (max(rxmin, no_fly_xmin), min(rxmax, no_fly_xmax), no_fly_ymax, rymax))  # Top part
+            else:
+                # If no intersection, keep the entire region
+                new_regions.append(region)
+
+        possible_regions = new_regions  # this possible region will be keep reducing.
+
+    # Randomly select one of the remaining regions
+    if not possible_regions:
+        raise ValueError("No valid regions available outside the no-fly zones.")
+
+    square_length = 10
+    # Loop through the possible regions to find a valid square
+    for selected_region in possible_regions:
+        rxmin, rxmax, rymin, rymax = selected_region
+
+        # Ensure there is enough space for the square
+        if rxmax - rxmin >= square_length and rymax - rymin >= square_length:
+            # Generate a random bottom-left corner for the square
+            square_x = np.random.uniform(rxmin, rxmax - square_length)
+            square_y = np.random.uniform(rymin, rymax - square_length)
+
+            # Calculate the center of the square
+            center_x = square_x + square_length / 2
+            center_y = square_y + square_length / 2
+            return [center_x, center_y]
+
+    # If no valid square can be found
+    raise ValueError("Unable to place a square of the given size outside no-fly zones.")
+
+
+def generate_random_destination_multiple_exclusions(bounds, no_fly_zones, start_pt, traj_dist):
+    xmin, xmax, ymin, ymax = bounds
+    px, py = start_pt
+
+    # Start with the entire space as possible regions
+    possible_regions = [(xmin, xmax, ymin, ymax)]
+
+    for no_fly_bounds in no_fly_zones:
+        no_fly_xmin, no_fly_xmax, no_fly_ymin, no_fly_ymax = no_fly_bounds
+        new_regions = []
+        for region in possible_regions:
             rxmin, rxmax, rymin, rymax = region
 
             # Check if the no-fly zone intersects with the current region
@@ -406,20 +542,23 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
     if not possible_regions:
         raise ValueError("No valid regions available outside the no-fly zones.")
 
-    selected_region = possible_regions[np.random.randint(0, len(possible_regions))]
+    # Initialize a list to collect valid points from all regions
+    valid_points = []
+    # Loop through all possible regions and calculate valid points
+    radius = traj_dist
+    for selected_region in possible_regions:
+        rxmin, rxmax, rymin, rymax = selected_region
+        quad_vertices = [(rxmin, rymax), (rxmax, rymax), (rxmax, rymin), (rxmin, rymin)]
+        # Calculate intersection of the circle and the region
+        # Define intersection points on the boundary
+        intersection_points = circle_quadrilateral_intersection(px, py, radius, quad_vertices)
+        # Add all valid points from the current region to the list
+        valid_points.extend(intersection_points)
 
-    # Generate a random center within the selected region
-    center_x = np.random.uniform(selected_region[0], selected_region[1])
-    center_y = np.random.uniform(selected_region[2], selected_region[3])
+    if not valid_points:
+        raise ValueError("No valid points at the specified distance within all available regions.")
 
-    # # Randomly select a radius that fits within the selected region
-    # max_possible_radius_x = min(center_x - selected_region[0], selected_region[1] - center_x)
-    # max_possible_radius_y = min(center_y - selected_region[2], selected_region[3] - center_y)
-    # max_possible_radius = min(max_possible_radius_x, max_possible_radius_y, max_radius)
-    #
-    # radius = np.random.uniform(0, max_possible_radius)
-
-    return [center_x, center_y]
+    return random.choice(valid_points)
 
 
 def load_svg_image(svg_path):

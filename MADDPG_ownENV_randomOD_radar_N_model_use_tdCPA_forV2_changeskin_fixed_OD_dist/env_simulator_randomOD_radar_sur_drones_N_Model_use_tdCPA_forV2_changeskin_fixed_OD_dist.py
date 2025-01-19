@@ -21,7 +21,7 @@ from scipy.spatial import KDTree
 import random
 import itertools
 from copy import deepcopy
-from agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import Agent
+from agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import Agent
 import pandas as pd
 import math
 import numpy as np
@@ -34,7 +34,7 @@ import matplotlib
 from cloud import cloud_agent
 import re
 import time
-from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin import *
+from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_fixed_OD_dist import *
 import torch as T
 import torch
 import torch.nn.functional as F
@@ -666,6 +666,8 @@ class env_simulator:
 
         cloud_config = []
         no_spawn_zone = []
+        no_terminal_zone = []
+        training_traj_length = 150
         for cloud_idx, cloud_setting in enumerate(all_clouds):
             cloud_a = cloud_agent(cloud_idx)
             cloud_a.pos = Point(cloud_setting[0], cloud_setting[1])
@@ -674,15 +676,29 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
-            no_spawn_zone.append((cloud_setting[0]-30, cloud_setting[0]+30, cloud_setting[1]-30, cloud_setting[1]+30))
+            # no_spawn_zone.append((cloud_setting[0]-30, cloud_setting[0]+30, cloud_setting[1]-30, cloud_setting[1]+30))  # original
+            no_spawn_zone.append((cloud_setting[0]-cloud_a.contour_range,
+                                  cloud_setting[0]+cloud_a.contour_range,
+                                  cloud_setting[1]-cloud_a.contour_range,
+                                  cloud_setting[1]+cloud_a.contour_range))
+
+            # no aircraft's destination at cloud's destination
+            no_terminal_zone.append((cloud_setting[2]-cloud_a.contour_range,
+                                  cloud_setting[2]+cloud_a.contour_range,
+                                  cloud_setting[3]-cloud_a.contour_range,
+                                  cloud_setting[3]+cloud_a.contour_range))
 
         # additional no spawn zone to account for aircraft don't spawn near the map boundaries
         no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+10))  # x-axis, lower bound
         no_spawn_zone.append((self.bound[0], self.bound[1], self.bound[3]-10, self.bound[3]))  # x-axis, upper bound
         no_spawn_zone.append((self.bound[0], self.bound[0]+10, self.bound[2], self.bound[3]))  # y-axis, left bound
         no_spawn_zone.append((self.bound[1]-10, self.bound[1], self.bound[2], self.bound[3]))  # y-axis, right bound
+        # prepare no terminal zone for AC's destination
+        no_terminal_zone.append((self.bound[0], self.bound[1], self.bound[2], self.bound[2]+10))
+        no_terminal_zone.append((self.bound[0], self.bound[1], self.bound[3]-10, self.bound[3]))
+        no_terminal_zone.append((self.bound[0], self.bound[0]+10, self.bound[2], self.bound[3]))
+        no_terminal_zone.append((self.bound[1]-10, self.bound[1], self.bound[2], self.bound[3]))
         # end of additional no spawn zone to account for aircraft don't spawn near the map boundaries
-
         # -------- end of add cloud -----------
 
         # --------- potential reference line (only for display not involved in training)---------
@@ -731,31 +747,44 @@ class env_simulator:
 
             # random_start_pos = random.choice(self.target_pool[random_start_index])
             random_start_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
+            no_spawn_zone.append((random_start_pos[0]-self.all_agents[agentIdx].protectiveBound,
+                                  random_start_pos[0]+self.all_agents[agentIdx].protectiveBound,
+                                  random_start_pos[1]-self.all_agents[agentIdx].protectiveBound,
+                                  random_start_pos[1]+self.all_agents[agentIdx].protectiveBound))
 
-            if len(start_pos_memory) > 0:
-                while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
-                    # Generate a new point
-                    random_start_index = random.randint(0, len(self.target_pool) - 1)
-                    numbers_left = list(range(0, random_start_index)) + list(
-                        range(random_start_index + 1, len(self.target_pool)))
-                    random_target_index = random.choice(numbers_left)
-                    # random_start_pos = random.choice(self.target_pool[random_start_index])
-                    random_start_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
-                    # Check that the distance to all existing points is more than safety buffer (5)*4
-                    if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*8 for point in start_pos_memory):
-                        break
+            # if len(start_pos_memory) > 0:
+            #     while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
+            #         # Generate a new point
+            #         random_start_index = random.randint(0, len(self.target_pool) - 1)
+            #         numbers_left = list(range(0, random_start_index)) + list(
+            #             range(random_start_index + 1, len(self.target_pool)))
+            #         random_target_index = random.choice(numbers_left)
+            #         # random_start_pos = random.choice(self.target_pool[random_start_index])
+            #         random_start_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
+            #
+            #         # May be add starting point here ???? break here within this while loop to check
+            #
+            #         # Check that the distance to all existing points is more than safety buffer (5)*4
+            #         if all(np.linalg.norm(np.array(random_start_pos)-point) > self.all_agents[agentIdx].protectiveBound*8 for point in start_pos_memory):
+            #             break
 
             # random_end_pos = random.choice(self.target_pool[random_target_index])
-            random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
+            # random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)  # original
+            random_end_pos = generate_random_destination_multiple_exclusions(self.bound, no_terminal_zone, random_start_pos, training_traj_length)
+            no_terminal_zone.append((random_end_pos[0]-self.all_agents[agentIdx].protectiveBound,
+                                  random_end_pos[0]+self.all_agents[agentIdx].protectiveBound,
+                                  random_end_pos[1]-self.all_agents[agentIdx].protectiveBound,
+                                  random_end_pos[1]+self.all_agents[agentIdx].protectiveBound))
 
-            with open(
-                    r'D:\MADDPG_2nd_jp\020125_20_11_12\interval_record_eps\_5AC_cur_eva_fixedAR_OD.pickle',
-                    'rb') as handle:
-                OD_eta_record = pickle.load(handle)
-            result_to_repeat = OD_eta_record[0]
-            self.all_agents[agentIdx].ar = result_to_repeat[0][agentIdx][0]
-            self.all_agents[agentIdx].eta = result_to_repeat[0][agentIdx][1]
-            self.all_agents[agentIdx].ini_eta = result_to_repeat[0][agentIdx][1]
+
+            # with open(
+            #         r'D:\MADDPG_2nd_jp\020125_20_11_12\interval_record_eps\_5AC_cur_eva_fixedAR_OD.pickle',
+            #         'rb') as handle:
+            #     OD_eta_record = pickle.load(handle)
+            # result_to_repeat = OD_eta_record[0]
+            # self.all_agents[agentIdx].ar = result_to_repeat[0][agentIdx][0]
+            # self.all_agents[agentIdx].eta = result_to_repeat[0][agentIdx][1]
+            # self.all_agents[agentIdx].ini_eta = result_to_repeat[0][agentIdx][1]
             if evaluation_by_fixed_ar:
                 # with open(
                 #         r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4_AC_randomAR_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle',
@@ -928,6 +957,10 @@ class env_simulator:
             # shown bounding boxes
             for bbox in no_spawn_zone:
                 plot_bounding_box(ax, bbox)
+
+            # shown bounding boxes for no spawn zone in term of destination
+            for bbox in no_terminal_zone:
+                plot_bounding_box(ax, bbox, edgecolor='y', facecolor='none')
 
             # show the nearest building obstacles
             # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')
