@@ -62,7 +62,7 @@ def main(args):
         current_date = today.strftime("%d%m%y")
         current_time = datetime.datetime.now()
         formatted_time = current_time.strftime("%H_%M_%S")
-        file_name = 'D:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
+        file_name = 'C:\MADDPG_2nd_jp/' + str(current_date) + '_' + str(formatted_time)
         if not os.path.exists(file_name):
             os.makedirs(file_name)
         plot_file_name = file_name + '/toplot'
@@ -77,8 +77,8 @@ def main(args):
         # initialize_excel_file(excel_file_path_time)
         # ------------ end of this portion is to save using excel instead of pickle -----------
 
-    use_wanDB = False
-    # use_wanDB = True
+    # use_wanDB = False
+    use_wanDB = True
 
     evaluation_by_episode = True
     # evaluation_by_episode = False
@@ -107,8 +107,8 @@ def main(args):
     # use_selfATT_with_radar = True
     use_selfATT_with_radar = False
 
-    # use_allNeigh_wRadar = True
-    use_allNeigh_wRadar = False
+    use_allNeigh_wRadar = True
+    # use_allNeigh_wRadar = False
 
     # use_nearestN_neigh_wRadar = True
     use_nearestN_neigh_wRadar = False
@@ -147,7 +147,7 @@ def main(args):
     yhigh = 200
     bound = [xlow, xhigh, ylow, yhigh]
     # generate static env from shape file
-    shapePath = 'D:\lakesideMap\lakeSide.shp'
+    shapePath = r'C:\Users\aiden.pang\Documents\GitHub\MARL_2nd_paper\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV3\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath, bound)
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3])
     max_xy = staticEnv[-1]

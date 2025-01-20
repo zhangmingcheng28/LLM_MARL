@@ -551,7 +551,7 @@ class MADDPG:
                 else:
                     # action_i = self.actors([stacked_elem_0, stacked_elem_2])
                     action_i = self.actors([stacked_elem_0, stacked_elem_2, cur_mask_batch])
-                    ac = action_i
+                ac = action_i
                     # ac = action_i.squeeze(0)  # replace the actor from self.actors[agent] into action batch
 
 

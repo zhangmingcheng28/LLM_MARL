@@ -667,7 +667,7 @@ class env_simulator:
         cloud_config = []
         no_spawn_zone = []
         no_terminal_zone = []
-        training_traj_length = 150
+        training_traj_length = 100
         for cloud_idx, cloud_setting in enumerate(all_clouds):
             cloud_a = cloud_agent(cloud_idx)
             cloud_a.pos = Point(cloud_setting[0], cloud_setting[1])
@@ -676,11 +676,12 @@ class env_simulator:
             cloud_a.goal = Point(cloud_setting[2], cloud_setting[3])
             cloud_a.trajectory.append(cloud_a.pos)
             cloud_config.append(cloud_a)
+            cloud_centre_to_boundingBox = cloud_a.contour_range+10
             # no_spawn_zone.append((cloud_setting[0]-30, cloud_setting[0]+30, cloud_setting[1]-30, cloud_setting[1]+30))  # original
-            no_spawn_zone.append((cloud_setting[0]-cloud_a.contour_range,
-                                  cloud_setting[0]+cloud_a.contour_range,
-                                  cloud_setting[1]-cloud_a.contour_range,
-                                  cloud_setting[1]+cloud_a.contour_range))
+            no_spawn_zone.append((cloud_setting[0]-cloud_centre_to_boundingBox,
+                                  cloud_setting[0]+cloud_centre_to_boundingBox,
+                                  cloud_setting[1]-cloud_centre_to_boundingBox,
+                                  cloud_setting[1]+cloud_centre_to_boundingBox))
 
             # no aircraft's destination at cloud's destination
             no_terminal_zone.append((cloud_setting[2]-cloud_a.contour_range,
@@ -746,11 +747,11 @@ class env_simulator:
             random_target_index = random.choice(numbers_left)
 
             # random_start_pos = random.choice(self.target_pool[random_start_index])
-            random_start_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
-            no_spawn_zone.append((random_start_pos[0]-self.all_agents[agentIdx].protectiveBound,
-                                  random_start_pos[0]+self.all_agents[agentIdx].protectiveBound,
-                                  random_start_pos[1]-self.all_agents[agentIdx].protectiveBound,
-                                  random_start_pos[1]+self.all_agents[agentIdx].protectiveBound))
+            random_start_pos, possible_regions, square_length = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
+            no_spawn_zone.append((random_start_pos[0]-square_length,
+                                  random_start_pos[0]+square_length,
+                                  random_start_pos[1]-square_length,
+                                  random_start_pos[1]+square_length))
 
             # if len(start_pos_memory) > 0:
             #     while len(start_pos_memory) < len(self.all_agents):  # make sure the starting drone generated do not collide with any existing drone
@@ -886,7 +887,7 @@ class env_simulator:
         if show:
             os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
             matplotlib.use('TkAgg')
-            aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+            aircraft_svg_path = r'C:\Users\aiden.pang\Documents\GitHub\MARL_2nd_paper\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV3\Aircraft.svg'  # Replace with your SVG path
             plane_img = load_svg_image(aircraft_svg_path)
             fig, ax = plt.subplots(1, 1)
             plot_linestring(ax, x_left, zorder=5)
@@ -954,13 +955,18 @@ class env_simulator:
                 matp_poly = shapelypoly_to_matpoly(poly, False, 'red')  # the 3rd parameter is the edge color
                 # ax.add_patch(matp_poly)
 
+            # shown bounding boxes for free to spawn zone
+            for bbox in possible_regions:
+                plot_bounding_box(ax, bbox, edgecolor='g', facecolor='none')
+
             # shown bounding boxes
             for bbox in no_spawn_zone:
-                plot_bounding_box(ax, bbox)
+                plot_bounding_box(ax, bbox, edgecolor='r', facecolor='none')
 
             # shown bounding boxes for no spawn zone in term of destination
-            for bbox in no_terminal_zone:
-                plot_bounding_box(ax, bbox, edgecolor='y', facecolor='none')
+            # for bbox in no_terminal_zone:
+            #     plot_bounding_box(ax, bbox, edgecolor='y', facecolor='none')
+
 
             # show the nearest building obstacles
             # nearest_buildingPoly_mat = shapelypoly_to_matpoly(nearest_buildingPoly, True, 'g', 'k')

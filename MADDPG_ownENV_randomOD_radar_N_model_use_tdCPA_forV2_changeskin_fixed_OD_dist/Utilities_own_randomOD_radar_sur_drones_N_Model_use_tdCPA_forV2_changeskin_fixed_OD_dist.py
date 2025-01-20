@@ -486,13 +486,25 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
     if not possible_regions:
         raise ValueError("No valid regions available outside the no-fly zones.")
 
-    square_length = 10
-    # Loop through the possible regions to find a valid square
-    for selected_region in possible_regions:
-        rxmin, rxmax, rymin, rymax = selected_region
+    square_length = 10  # the starting area initialization
+    if len(possible_regions) == 0:
+        # If no valid square can be found
+        raise ValueError("Unable to place a square of the given size outside no-fly zones.")
+    else:
+        actual_spawn_region = []
 
-        # Ensure there is enough space for the square
-        if rxmax - rxmin >= square_length and rymax - rymin >= square_length:
+        for selected_region in possible_regions:
+            rxmin, rxmax, rymin, rymax = selected_region
+            # among all possible spawn regions we filter out space that is enough to fit a spawn square
+            # Ensure there is enough space for the square
+            if rxmax - rxmin >= square_length and rymax - rymin >= square_length:
+                actual_spawn_region.append(selected_region)
+
+        if len(actual_spawn_region) == 0:
+            raise ValueError("not enough space for the starting square.")
+        else:
+            origin_region = random.choice(actual_spawn_region)
+            rxmin, rxmax, rymin, rymax = origin_region
             # Generate a random bottom-left corner for the square
             square_x = np.random.uniform(rxmin, rxmax - square_length)
             square_y = np.random.uniform(rymin, rymax - square_length)
@@ -500,10 +512,7 @@ def generate_random_circle_multiple_exclusions(bounds, no_fly_zones):
             # Calculate the center of the square
             center_x = square_x + square_length / 2
             center_y = square_y + square_length / 2
-            return [center_x, center_y]
-
-    # If no valid square can be found
-    raise ValueError("Unable to place a square of the given size outside no-fly zones.")
+            return [center_x, center_y], actual_spawn_region, square_length
 
 
 def generate_random_destination_multiple_exclusions(bounds, no_fly_zones, start_pt, traj_dist):
@@ -690,7 +699,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     # plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'C:\Users\aiden.pang\Documents\GitHub\MARL_2nd_paper\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV3\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     # Define colors with transparency (alpha)
     colors = [
@@ -904,7 +913,7 @@ def view_traj_by_scatter(env, trajectory_eachPlay, save_path=None, max_time_step
     max_time_step = None
     save_path = None
 
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'C:\Users\aiden.pang\Documents\GitHub\MARL_2nd_paper\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV3\Aircraft.svg'  # Replace with your SVG path
     png_image = convert_svg_to_png(aircraft_svg_path)
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -1176,7 +1185,7 @@ def view_traj_by_scatter(env, trajectory_eachPlay, save_path=None, max_time_step
 
 
 def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=None):
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'C:\Users\aiden.pang\Documents\GitHub\MARL_2nd_paper\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV3\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
