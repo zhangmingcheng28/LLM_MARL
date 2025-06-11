@@ -13,6 +13,7 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
+from pc_specific import PCconfig
 from maddpg_agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2 import MADDPG
 from utils_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2 import *
 from grid_env_generation_newframe_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2 import env_generation
@@ -123,7 +124,8 @@ def main(args):
     yhigh = 385
     bound = [xlow, xhigh, ylow, yhigh]
     # generate static env from shape file
-    shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
+    shapePath = PCconfig().shape_path
+    # shapePath = 'D:\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     # shapePath = 'F:\githubClone\deep_Q_learning\DQN_new_framework\lakesideMap\lakeSide.shp'
     # shapePath = 'D:\github_clone\Multi_agent_AAC\MA_ver1\lakesideMap\lakeSide.shp'
     staticEnv = env_generation(shapePath, bound)
@@ -302,7 +304,7 @@ def main(args):
         # args.max_episodes = 1
         # args.max_episodes = 250
         # args.max_episodes = 25
-        pre_fix = r'D:\MADDPG_2nd_jp\091124_11_17_06\interval_record_eps'
+        pre_fix = PCconfig().save_file_prefix
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(20000)
