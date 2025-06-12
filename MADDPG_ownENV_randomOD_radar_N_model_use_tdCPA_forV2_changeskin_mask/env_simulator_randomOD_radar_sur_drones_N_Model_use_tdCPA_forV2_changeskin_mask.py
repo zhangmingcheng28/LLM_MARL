@@ -3672,7 +3672,7 @@ class env_simulator:
         return reward, done, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check
 
 
-    def ss_reward_Mar_changeskin(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, evaluation_by_episode, evaluation_by_fixed_ar):
+    def ss_reward_Mar_changeskin(self, current_ts, step_reward_record, step_collision_record, xy, full_observable_critic_flag, args, evaluation_by_episode, evaluation_by_fixed_ar, delta_xy_with_uncert):
         bound_building_check = [False] * 4
         eps_status_holder = [{} for _ in range(len(self.all_agents))]
         reward, done = [], []
@@ -4368,7 +4368,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, np.array(after_dist_hg),
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, np.array(after_dist_hg),delta_xy_with_uncert,
                                                             [np.array(dist_to_goal), cross_err_distance, dist_to_ref_line,
                                                              np.array(near_building_penalty), small_step_penalty,
                                                              np.linalg.norm(drone_obj.vel), near_goal_reward,
@@ -4401,8 +4401,9 @@ class env_simulator:
 
 
 
-    def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, cur_step_reward):
+    def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, delta_xy_with_uncert, cur_step_reward):
         status_holder[drone_idx]['Euclidean_dist_to_goal'] = cur_dist_to_goal
+        status_holder[drone_idx]['delta_xy'] = delta_xy_with_uncert
         status_holder[drone_idx]['goal_leading_reward'] = cur_step_reward[0]
         status_holder[drone_idx]['deviation_to_ref_line'] = cur_step_reward[1]
         status_holder[drone_idx]['deviation_to_ref_line_reward'] = cur_step_reward[2]
@@ -4647,7 +4648,7 @@ class env_simulator:
         #     fig.canvas.flush_events()
         #     ax.cla()
 
-        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record
+        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record, (delta_x, delta_y, uncertain_val_x, uncertain_val_y)
 
     def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):
         num_lack = int(max_agent_train-len(self.all_agents))

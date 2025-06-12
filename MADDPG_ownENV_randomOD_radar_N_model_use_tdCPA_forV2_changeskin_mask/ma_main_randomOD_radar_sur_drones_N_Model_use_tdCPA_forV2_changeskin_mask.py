@@ -295,6 +295,7 @@ def main(args):
     eps_reward_record = []
     eps_check_collision = []
     eps_noise_record = []
+    eps_status_record = []
     episode_critic_loss_cal_record = []
     # eps_end = 500  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
     # eps_end = 5000  # at eps = eps_end, the eps value drops to lowest value which is 0.03 (this value is fixed)
@@ -410,6 +411,7 @@ def main(args):
 
         eps_all_ac_eva_OD_eta = {agent_idx: [agent.ar, agent.eta] for agent_idx, agent in
                                  env.all_agents.items()}
+        current_eps_status = []
         while True:  # start of a step
             if args.mode == "train":
                 step_start_time = time.time()
@@ -433,7 +435,9 @@ def main(args):
                 # action = model.choose_action(cur_state, episode, noisy=True)
 
                 one_step_transition_start = time.time()
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record_aft_act = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
+                (next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points,
+                 all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list,
+                 agent_masks_record_aft_act, delta_xy_with_uncert) = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -442,7 +446,7 @@ def main(args):
 
                 one_step_reward_start = time.time()
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)   # remove reached agent here
-                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, evaluation_by_fixed_ar)   # remove reached agent here
+                reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, evaluation_by_fixed_ar, delta_xy_with_uncert)   # remove reached agent here
                 reward_generation_time = (time.time() - one_step_reward_start)*1000
                 # print("current step reward time used is {} milliseconds".format(reward_generation_time))
 
@@ -640,6 +644,7 @@ def main(args):
                 # print("current episode, one whole step time used is {} milliseconds".format(whole_step_time))
                 step_time_breakdown.append([generate_action_time, step_transition_time, reward_generation_time,
                                             update_time_used, whole_step_time])
+                current_eps_status.append(status_holder)
                 if args.episode_length < step:
                     episode_decision[0] = True
                     print("Agents stuck in some places, maximum step in one episode reached, current episode {} ends, all {} steps used".format(episode, args.episode_length))
@@ -771,6 +776,7 @@ def main(args):
                     # print("[Episode %05d] reward %6.4f time used is %.2f sec" % (episode, accum_reward, time_used))
                     print("[Episode %05d] reward %6.4f" % (episode, accum_reward))
                     eps_OD_record.append(cur_eps_OD)
+                    eps_status_record.append(current_eps_status)
                     if use_wanDB:
                         wandb.log({'overall_reward': float(accum_reward)}, step=episode)
                         if c_loss and a_loss:
@@ -814,6 +820,7 @@ def main(args):
                         # print(f'Data saved to {excel_file_path}')
                         # save a gif every 100 episode during training
                         episode_to_check = str(episode)
+
                         goal_reach_history.append(goal_reached)
                         print("For the previous 100 episode, the number of goal reaching count is {}".format(goal_reached))
                         goal_reached = 0
@@ -853,6 +860,8 @@ def main(args):
                     if episode % args.save_interval == 0 and args.mode == "train":
                     # if episode % 1 == 0 and args.mode == "train":
                         save_model = time.time()
+                        with open(plot_file_name + '/all_episode_each_step_status.pickle', 'wb') as handle:
+                            pickle.dump(eps_status_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
                         # save the models at a predefined interval
                         # save model to my own directory
                         filepath = file_name+'/interval_record_eps'
@@ -899,12 +908,12 @@ def main(args):
                 action, step_noise_val, cur_actor_hiddens, next_actor_hiddens, cur_agent_masks_record = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, env.all_agents, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones
-                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record_aft_act = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
+                next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record_aft_act, delta_xy_with_uncert = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode, own_obs_only)
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record, eps_status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar(step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args, evaluation_by_episode)
                 reward_aft_action, done_aft_action, check_goal, step_reward_record, status_holder, step_collision_record, bound_building_check = env.ss_reward_Mar_changeskin(
                     step, step_reward_record, step_collision_record, dummy_xy, full_observable_critic_flag, args,
-                    evaluation_by_episode, evaluation_by_fixed_ar)  # remove reached agent here
+                    evaluation_by_episode, evaluation_by_fixed_ar, delta_xy_with_uncert)  # remove reached agent here
                 # reward_aft_action, done_aft_action, check_goal, step_reward_record = env.get_step_reward_5_v3(step, step_reward_record)
 
                 step += 1
@@ -1156,6 +1165,8 @@ def main(args):
             pickle.dump(eps_check_collision, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(plot_file_name + '/all_episode_OD.pickle', 'wb') as handle:
             pickle.dump(eps_OD_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(plot_file_name + '/all_episode_each_step_status.pickle', 'wb') as handle:
+            pickle.dump(eps_status_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         with open(file_name + '/GFG.csv', 'w', newline='') as f:
             # using csv.writer method from CSV package
             write = csv.writer(f)
