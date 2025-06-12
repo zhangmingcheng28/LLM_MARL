@@ -4522,6 +4522,8 @@ class env_simulator:
 
             # update current acceleration of the agent after an action
             self.all_agents[drone_idx].acc = np.array([ax, ay])
+            original_delta_x = copy.deepcopy(delta_x)
+            original_delta_y = copy.deepcopy(delta_y)
             uncertain_val_x = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
             uncertain_val_y = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
 
@@ -4648,7 +4650,7 @@ class env_simulator:
         #     fig.canvas.flush_events()
         #     ax.cla()
 
-        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record, (delta_x, delta_y, uncertain_val_x, uncertain_val_y)
+        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record, (original_delta_x, original_delta_y, uncertain_val_x, uncertain_val_y, delta_x, delta_y)
 
     def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):
         num_lack = int(max_agent_train-len(self.all_agents))
