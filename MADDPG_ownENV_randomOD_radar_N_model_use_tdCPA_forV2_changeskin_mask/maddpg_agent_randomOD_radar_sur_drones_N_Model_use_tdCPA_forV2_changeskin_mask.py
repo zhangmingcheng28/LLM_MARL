@@ -3,6 +3,7 @@ from Nnetworks_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask
 from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import *
 import torch
 from copy import deepcopy
+from pc_specific import PCconfig
 from torch.optim import Adam
 from memory_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import ReplayMemory, Experience
 # from random_process_MADDPGv3_randomOD import OrnsteinUhlenbeckProcess
@@ -70,15 +71,15 @@ class MADDPG:
 
                 self.pretrained_mask_not_inside_mask = pretrained_mask_not_inside_mask(num_segments=10)
                 self.pretrained_mask_not_inside_mask.load_state_dict(
-                    torch.load('F:\githubClone\LLM_MARL\multi_agent_AAC_v2\mask_model_out_mask_wTanh_v2.pth', weights_only=True))
+                    torch.load(PCconfig().head_not_inside_mask, weights_only=True))
 
                 self.pretrained_mask_all_mask_head = pretrained_mask_all_mask_head(num_segments=10)
                 self.pretrained_mask_all_mask_head.load_state_dict(
-                    torch.load('F:\githubClone\LLM_MARL\multi_agent_AAC_v2\mask_model_fully_masked_wTanh_v2.pth', weights_only=True))
+                    torch.load(PCconfig().head_all_mask_head, weights_only=True))
 
                 self.pretrained_mask_inside_mask = pretrained_mask_inside_mask(num_segments=10)
                 self.pretrained_mask_inside_mask.load_state_dict(
-                    torch.load('F:\githubClone\LLM_MARL\multi_agent_AAC_v2\mask_model_eps20000_in_mask_wTanh_v2.pth', weights_only=True))
+                    torch.load(PCconfig().head_inside_mask, weights_only=True))
 
                 self.actors = LLM_actor_pretrained_head(actor_dim, dim_act, self.pretrained_mask_not_inside_mask,
                                                         self.pretrained_mask_all_mask_head, self.pretrained_mask_inside_mask)

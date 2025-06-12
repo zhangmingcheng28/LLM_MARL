@@ -89,6 +89,8 @@ class env_simulator:
         self.potential_ref_line = None
         self.boundaries = None
         self.acc_range = None
+        self.uncertain_mu = 0
+        self.uncertain_sigma = 1
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range):
         # config OU_noise
@@ -748,14 +750,14 @@ class env_simulator:
             # random_end_pos = random.choice(self.target_pool[random_target_index])
             random_end_pos = generate_random_circle_multiple_exclusions(self.bound, no_spawn_zone)
 
-            with open(
-                    r'D:\MADDPG_2nd_jp\020125_20_11_12\interval_record_eps\_5AC_cur_eva_fixedAR_OD.pickle',
-                    'rb') as handle:
-                OD_eta_record = pickle.load(handle)
-            result_to_repeat = OD_eta_record[0]
-            self.all_agents[agentIdx].ar = result_to_repeat[0][agentIdx][0]
-            self.all_agents[agentIdx].eta = result_to_repeat[0][agentIdx][1]
-            self.all_agents[agentIdx].ini_eta = result_to_repeat[0][agentIdx][1]
+            # with open(
+            #         r'D:\MADDPG_2nd_jp\020125_20_11_12\interval_record_eps\_5AC_cur_eva_fixedAR_OD.pickle',
+            #         'rb') as handle:
+            #     OD_eta_record = pickle.load(handle)
+            # result_to_repeat = OD_eta_record[0]
+            # self.all_agents[agentIdx].ar = result_to_repeat[0][agentIdx][0]
+            # self.all_agents[agentIdx].eta = result_to_repeat[0][agentIdx][1]
+            # self.all_agents[agentIdx].ini_eta = result_to_repeat[0][agentIdx][1]
             if evaluation_by_fixed_ar:
                 # with open(
                 #         r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\4_AC_randomAR_3cL_randomOD_16000\_4AC_cur_eva_fixedAR_OD.pickle',
@@ -4519,10 +4521,14 @@ class env_simulator:
 
             # update current acceleration of the agent after an action
             self.all_agents[drone_idx].acc = np.array([ax, ay])
+            uncertain_val_x = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
+            uncertain_val_y = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
 
+            delta_x = delta_x * (1+uncertain_val_x)
+            delta_y = delta_y * (1+uncertain_val_y)
             counterCheck_heading = math.atan2(delta_y, delta_x)
-            if abs(next_heading - counterCheck_heading) > 1e-3:
-                print("debug, heading different")
+            # if abs(next_heading - counterCheck_heading) > 1e-3:
+            #     print("debug, heading different")
             if drone_obj.reach_target != True:
                 self.all_agents[drone_idx].heading = counterCheck_heading  # only update heading when AC has not reached the goal.
             # ------------- end of acceleration in x and acceleration in y state transition control ---------------#

@@ -13,6 +13,7 @@ import time
 import matplotlib.animation as animation
 import pickle
 import wandb
+from pc_specific import PCconfig
 from parameters_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import initialize_parameters
 from maddpg_agent_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import MADDPG
 from utils_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import *
@@ -86,8 +87,8 @@ def main(args):
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    # evaluation_by_fixed_ar = False
+    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -147,7 +148,7 @@ def main(args):
     yhigh = 200
     bound = [xlow, xhigh, ylow, yhigh]
     # generate static env from shape file
-    shapePath = 'D:\lakesideMap\lakeSide.shp'
+    shapePath = PCconfig().shape_path
     staticEnv = env_generation(shapePath, bound)
     env = env_simulator(staticEnv[0], staticEnv[1], staticEnv[2], bound, staticEnv[3])
     max_xy = staticEnv[-1]
