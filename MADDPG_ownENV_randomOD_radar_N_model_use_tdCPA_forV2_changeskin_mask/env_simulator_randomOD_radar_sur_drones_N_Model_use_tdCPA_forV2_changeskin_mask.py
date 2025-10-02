@@ -89,8 +89,11 @@ class env_simulator:
         self.potential_ref_line = None
         self.boundaries = None
         self.acc_range = None
-        self.uncertain_mu = 0
-        self.uncertain_sigma = 1
+        self.uncertain_mu = 0  # mean, assuming uncertainty follows normal dist.
+        self.uncertain_sigma = 0 # standard dev., assuming uncertainty follows normal dist.
+        # self.uncertain_var = 0.05 # in 5%, variance
+        # self.uncertain_sigma = np.sqrt(self.uncertain_var) # standard dev., assuming uncertainty follows normal dist.
+
 
     def create_world(self, total_agentNum, n_actions, gamma, tau, target_update, largest_Nsigma, smallest_Nsigma, ini_Nsigma, max_xy, max_spd, acc_range):
         # config OU_noise
@@ -3701,7 +3704,7 @@ class env_simulator:
         y_bottom_bound = LineString([(-9999, self.bound[2]), (9999, self.bound[2])])
         y_top_bound = LineString([(-9999, self.bound[3]), (9999, self.bound[3])])
         dist_to_goal = 0  # initialize
-
+        transformed_delta_xy_with_uncert = list(map(list, zip(*delta_xy_with_uncert)))
         for drone_idx, drone_obj in self.all_agents.items():
             host_current_circle = Point(self.all_agents[drone_idx].pos[0], self.all_agents[drone_idx].pos[1]).buffer(
                 self.all_agents[drone_idx].protectiveBound)
@@ -4368,7 +4371,7 @@ class env_simulator:
             # print("current drone {} actual distance to goal is {}, current reward to gaol is {}, current ref line reward is {}, current step reward is {}".format(drone_idx, actual_after_dist_hg, dist_to_goal, dist_to_ref_line, rew))
 
             # record status of each step.
-            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, np.array(after_dist_hg),delta_xy_with_uncert,
+            eps_status_holder = self.display_one_eps_status(eps_status_holder, drone_idx, np.array(after_dist_hg),transformed_delta_xy_with_uncert,
                                                             [np.array(dist_to_goal), cross_err_distance, dist_to_ref_line,
                                                              np.array(near_building_penalty), small_step_penalty,
                                                              np.linalg.norm(drone_obj.vel), near_goal_reward,
@@ -4403,7 +4406,7 @@ class env_simulator:
 
     def display_one_eps_status(self, status_holder, drone_idx, cur_dist_to_goal, delta_xy_with_uncert, cur_step_reward):
         status_holder[drone_idx]['Euclidean_dist_to_goal'] = cur_dist_to_goal
-        status_holder[drone_idx]['delta_xy'] = delta_xy_with_uncert
+        status_holder[drone_idx]['delta_xy'] = delta_xy_with_uncert[drone_idx]
         status_holder[drone_idx]['goal_leading_reward'] = cur_step_reward[0]
         status_holder[drone_idx]['deviation_to_ref_line'] = cur_step_reward[1]
         status_holder[drone_idx]['deviation_to_ref_line_reward'] = cur_step_reward[2]
@@ -4431,6 +4434,10 @@ class env_simulator:
         # for drone_idx, drone_act in actions.items():  # this is for evaluation with default action
         count = 1
 
+        pre_pos_holder = []
+        original_delta_holder = []
+        uncertain_val_holder = []
+        delta_holder = []
         # move cloud
         for cloud_agent in self.cloud_config:
             # load cloud's previous position
@@ -4451,6 +4458,7 @@ class env_simulator:
         for drone_idx_obj, drone_act in zip(self.all_agents.items(), actions):
             drone_idx = drone_idx_obj[0]
             drone_obj = drone_idx_obj[1]
+
             # let current neighbor become neighbor recorded before action
             start_deepcopy_time = time.time()
             self.all_agents[drone_idx].pre_surroundingNeighbor = deepcopy(self.all_agents[drone_idx].surroundingNeighbor)
@@ -4461,10 +4469,14 @@ class env_simulator:
                         # fill previous acceleration
             self.all_agents[drone_idx].pre_acc = deepcopy(self.all_agents[drone_idx].acc)
             # print("deepcopy done, time used {} milliseconds".format((time.time()-start_deepcopy_time)*1000))
+            pre_pos_holder.append(self.all_agents[drone_idx].pre_pos)
 
             if args.mode == 'eval' and evaluation_by_fixed_ar == True:
                 if self.all_agents[drone_idx].eta is not None:
                     if current_ts < self.all_agents[drone_idx].eta:
+                        original_delta_holder.append(np.zeros(2))
+                        uncertain_val_holder.append(np.zeros(2))
+                        delta_holder.append(np.zeros(2))
                         continue
                     else:
                         self.all_agents[drone_idx].eta = None  # once the AC move into the play, we can make eta become None, to signify that it is activated
@@ -4475,6 +4487,9 @@ class env_simulator:
                         or self.all_agents[drone_idx].bound_collision == True \
                         or self.all_agents[drone_idx].building_collision == True \
                         or self.all_agents[drone_idx].drone_collision == True:
+                    # original_delta_holder.append()
+                    # uncertain_val_holder.append()
+                    # delta_holder.append()
                     continue  # we make the drone don't move.
 
 
@@ -4522,13 +4537,20 @@ class env_simulator:
 
             # update current acceleration of the agent after an action
             self.all_agents[drone_idx].acc = np.array([ax, ay])
+
+
+
             original_delta_x = copy.deepcopy(delta_x)
             original_delta_y = copy.deepcopy(delta_y)
+            original_delta_holder.append(np.array([original_delta_x, original_delta_y]))
+            # introducing position uncertainties
             uncertain_val_x = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
             uncertain_val_y = np.random.normal(loc=self.uncertain_mu, scale=self.uncertain_sigma, size=1)[0]
+            uncertain_val_holder.append(np.array([uncertain_val_x, uncertain_val_y]))
 
             delta_x = delta_x * (1+uncertain_val_x)
             delta_y = delta_y * (1+uncertain_val_y)
+            delta_holder.append(np.array([delta_x, delta_y]))
             counterCheck_heading = math.atan2(delta_y, delta_x)
             # if abs(next_heading - counterCheck_heading) > 1e-3:
             #     print("debug, heading different")
@@ -4649,8 +4671,9 @@ class env_simulator:
         #     time.sleep(2)
         #     fig.canvas.flush_events()
         #     ax.cla()
-
-        return next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record, (original_delta_x, original_delta_y, uncertain_val_x, uncertain_val_y, delta_x, delta_y)
+        return (next_state, next_state_norm, polygons_list, all_agent_st_points, all_agent_ed_points,
+                all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list,
+                agent_masks_record, (pre_pos_holder, original_delta_holder, uncertain_val_holder, delta_holder))
 
     def fill_agents(self, max_agent_train, cur_state, norm_cur_state, remove_agent_keys):
         num_lack = int(max_agent_train-len(self.all_agents))

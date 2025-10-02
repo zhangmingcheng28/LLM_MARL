@@ -87,8 +87,8 @@ def main(args):
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    evaluation_by_fixed_ar = False
+    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    # evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -155,11 +155,11 @@ def main(args):
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
     # total_agentNum = 7
-    # total_agentNum = 6
+    total_agentNum = 6
     # total_agentNum = 4
-    total_agentNum = 5
-    # total_agentNum = 8
-    # total_agentNum = 1
+    # total_agentNum = 5
+    # total_agentNum = 9
+    # total_agentNum = 10
     # max_nei_num = 5
     # create world
     # actor_dim = [6+(total_agentNum-1)*2, 10, 6]  # dim host, maximum dim grid, dim other drones
@@ -436,8 +436,8 @@ def main(args):
 
                 one_step_transition_start = time.time()
                 (next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points,
-                 all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list,
-                 agent_masks_record_aft_act, delta_xy_with_uncert) = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
+                all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list,
+                agent_masks_record_aft_act, delta_xy_with_uncert) = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)
                 step_transition_time = (time.time() - one_step_transition_start)*1000
                 # print("current step transition time used is {} milliseconds".format(step_transition_time))
 
@@ -927,6 +927,7 @@ def main(args):
                     traj_step_list.append([each_agent.pos[0], each_agent.pos[1], np.array(step_reward_record[each_agent_idx][1]), each_agent.heading, each_agent.probe_line])
                 trajectory_eachPlay.append(traj_step_list)
                 accum_reward = accum_reward + sum(reward_aft_action)
+                current_eps_status.append(status_holder)
                 # # show states in text
                 # for agentIdx, agent in env.all_agents.items():
                 #     print("drone {}, next WP is {}, deviation from ref line is {}, ref_line_reward is {}, "
@@ -1059,24 +1060,26 @@ def main(args):
                     entire_evaluation_run_flight_ratio.extend(flight_ratio_per_eps_all_AC)
                     # -------- end of calculate the flight distance ratio at end of an episode during evaluation --------
                     evaluation_OD_repeatability.append([eps_all_ac_eva_OD_eta, trajectory_eachPlay, env.cloud_config])
+                    eps_status_record.append(current_eps_status)
                     my_file = "F:\githubClone\LLM_MARL\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV2_changeskin"
                     # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=30)
                     # view_static_traj(env, trajectory_eachPlay, png_file_name)
                     # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
-                    if get_evaluation_status:
-                        if simply_view_evaluation:
-                        # ------------------ static display trajectory ---------------------------- #
-                            view_static_traj(env, trajectory_eachPlay)
-                        # ------------------ end of static display trajectory ---------------------------- #
 
-                        # ---------- new save as gif ----------------------- #
-                        else:
-                            save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
+                    # if get_evaluation_status:
+                    #     if simply_view_evaluation:
+                    #     # ------------------ static display trajectory ---------------------------- #
+                    #         view_static_traj(env, trajectory_eachPlay)
+                    #     # ------------------ end of static display trajectory ---------------------------- #
+                    #
+                    #     # ---------- new save as gif ----------------------- #
+                    #     else:
+                    #         save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
                     if evaluation_by_episode:
                         if True in done_aft_action and step < args.episode_length:
                             # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                             if saved_gif == False:
-                                save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                                 saved_gif = True  # once current episode saved, no need to save one more time.
                             collision_count = collision_count + 1
                             # print("Episode {}, {} steps before collision".format(episode, step))
@@ -1114,13 +1117,13 @@ def main(args):
                             # Determine the number of True values and print the appropriate response
                             if num_true == 1:
                                 if saved_gif == False:
-                                    save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                    # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                                     saved_gif = True  # once current episode saved, no need to save one more time.
                                 # print("There is one True value in the list.")
                                 one_drone_reach = one_drone_reach + 1
                             elif num_true == 2:
                                 if saved_gif == False:
-                                    save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
+                                    # save_gif(env, trajectory_eachPlay, pre_fix, episode_to_check, episode)
                                     saved_gif = True  # once current episode saved, no need to save one more time.
                                 # print("There are two True values in the list.")
                                 two_drone_reach = two_drone_reach + 1
@@ -1183,6 +1186,8 @@ def main(args):
         if save_cur_eva_OD:
             with open(path_to_save_eva_OD + '_cur_eva_fixedAR_OD.pickle', 'wb') as handle:
                 pickle.dump(evaluation_OD_repeatability, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            with open(path_to_save_eva_OD + '_all_episode_evaluation_each_step_status.pickle', 'wb') as handle:
+                pickle.dump(eps_status_record, handle, protocol=pickle.HIGHEST_PROTOCOL)
         if evaluation_by_episode:
             print("total collision count is {}, {}%".format(collision_count, round(collision_count/args.max_episodes*100,2)))
             print("Collision due to bound is {}".format(crash_to_bound))
@@ -1226,10 +1231,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=100, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=300, type=int)  # maximum play per episode
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--episode_length', default=250, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
@@ -1248,7 +1253,7 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=100, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--gru_history_length', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))

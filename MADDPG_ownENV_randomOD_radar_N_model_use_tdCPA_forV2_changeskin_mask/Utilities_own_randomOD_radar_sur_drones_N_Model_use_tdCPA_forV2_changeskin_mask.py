@@ -68,22 +68,26 @@ def rgb_to_hex(color):
 
 
 def head_selection(input_val, pretrained_inside, pretrained_all_mask, pretrained_not_inside, outside_masked_segments, all_segments_masked, inside_masked_segments, current_mask):
-    if outside_masked_segments.any():
-        # if outside_masked_segments.sum().item() <10 and outside_masked_segments.sum().item() >1:
-        #     print("pause")
-        # Compute the output from pretrained_not_inside
-        pretrained_output = pretrained_not_inside(input_val, current_mask)  # Shape: (batch_size,)
-        input_val = torch.where(outside_masked_segments.bool(), pretrained_output,
-                    input_val)
-        # input_val[outside_masked_segments] = pretrained_not_inside(input_val, current_mask).squeeze(1)
+
+    # if inside_masked_segments.any():
+    #     pretrained_output = pretrained_inside(input_val, current_mask)  # Shape: (batch_size,)
+    #     input_val = torch.where(inside_masked_segments.bool(), pretrained_output, input_val)
+    #     # input_val[inside_masked_segments] = pretrained_inside(input_val, current_mask).squeeze(1)
+
+    # if outside_masked_segments.any():
+    #     # if outside_masked_segments.sum().item() <10 and outside_masked_segments.sum().item() >1:
+    #     #     print("pause")
+    #     # Compute the output from pretrained_not_inside
+    #     pretrained_output = pretrained_not_inside(input_val, current_mask)  # Shape: (batch_size,)
+    #     input_val = torch.where(outside_masked_segments.bool(), pretrained_output,
+    #                 input_val)
+    #     # input_val[outside_masked_segments] = pretrained_not_inside(input_val, current_mask).squeeze(1)
+
     if all_segments_masked.any():
         pretrained_output = pretrained_all_mask(input_val, current_mask)  # Shape: (batch_size,)
         input_val = torch.where(all_segments_masked.bool(), pretrained_output, input_val)
         # input_val[all_segments_masked] = pretrained_all_mask(input_val, current_mask).squeeze(1)
-    if inside_masked_segments.any():
-        pretrained_output = pretrained_inside(input_val, current_mask)  # Shape: (batch_size,)
-        input_val = torch.where(inside_masked_segments.bool(), pretrained_output, input_val)
-        # input_val[inside_masked_segments] = pretrained_inside(input_val, current_mask).squeeze(1)
+
     return input_val
 
 
@@ -551,7 +555,7 @@ def animate(frame_num, ax, env, trajectory_eachPlay):
     # plt.axhline(y=env.bound[3], c="green")
     plt.xlabel("X axis")
     plt.ylabel("Y axis")
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'D:\MADDPG_2nd_jp\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     # Define colors with transparency (alpha)
     colors = [
@@ -765,7 +769,7 @@ def view_traj_by_scatter(env, trajectory_eachPlay, save_path=None, max_time_step
     max_time_step = None
     save_path = None
 
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'D:\MADDPG_2nd_jp\Aircraft.svg'  # Replace with your SVG path
     png_image = convert_svg_to_png(aircraft_svg_path)
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -1036,8 +1040,9 @@ def view_traj_by_scatter(env, trajectory_eachPlay, save_path=None, max_time_step
     plt.show()
 
 
+#______________ display with aircraft position uncertainty ___________
 def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=None):
-    aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+    aircraft_svg_path = r'D:\MADDPG_2nd_jp\Aircraft.svg'  # Replace with your SVG path
     plane_img = load_svg_image(aircraft_svg_path)
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     matplotlib.use('TkAgg')
@@ -1053,7 +1058,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         (1, 1, 0),  # Yellow
         (1, 0.65, 0),  # Orange
     ]
-    # display initial condition
+    # display air route structures
     FixedAR_names = ['N884', 'M768', 'M767']
     for line_idx, line in enumerate(env.potential_ref_line):
         x, y = line.xy
@@ -1062,27 +1067,6 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         plt.text(line.coords[0][0]+5, line.coords[0][1]+5, FixedAR_names[line_idx])
         plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])  # end point
 
-    # for agentIdx, agent in env.all_agents.items():
-    #     x, y = agent.pos[0], agent.pos[1]
-    #     heading = agent.heading * 180 / np.pi  # in degree
-    #     img_extent = [
-    #         x - env.all_agents[0].protectiveBound,
-    #         x + env.all_agents[0].protectiveBound,
-    #         y - env.all_agents[0].protectiveBound,
-    #         y + env.all_agents[0].protectiveBound
-    #     ]
-    #     transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
-    #     ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
-    #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
-    #              marker=MarkerStyle("^"), color=colors[agentIdx])
-    #     # plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
-    #     # plot self_circle of the drone
-    #     self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
-    #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
-    #                                            FcColor='lightblue')  # None meaning no edge
-    #     grid_mat_Scir.set_zorder(2)
-    #     grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
-    #     ax.add_patch(grid_mat_Scir)
 
     # draw trajectory in current episode
     if max_time_step is None:
@@ -1181,6 +1165,7 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
                 for c in contour.collections:
                     c.set_clip_path(patch)
 
+    # display aircraft trajectory
     for agentIDX, agent in env.all_agents.items():
         previous_position = agent.ini_pos  # Start with the agent's initial position
         for trajectory_idx in range(max_time_step):
@@ -1225,8 +1210,8 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
     # plt.axvline(x=env.bound[1], c="green")
     # plt.axhline(y=env.bound[2], c="green")
     # plt.axhline(y=env.bound[3], c="green")
-    plt.xlabel("Length (nm)")
-    plt.ylabel("Width (nm)")
+    plt.xlabel("Length (NM)")
+    plt.ylabel("Width (NM)")
 
     # Save the figure if save_path is provided
     if save_path:
@@ -1239,6 +1224,212 @@ def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=Non
         # print(f"Figure saved at {save_path}")
 
     # plt.show()
+
+#______________ display without aircraft position uncertainty ___________
+# def view_static_traj(env, trajectory_eachPlay, save_path=None, max_time_step=None):
+#     aircraft_svg_path = r'F:\githubClone\HotspotResolver_24\pictures\Aircraft.svg'  # Replace with your SVG path
+#     plane_img = load_svg_image(aircraft_svg_path)
+#     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+#     matplotlib.use('TkAgg')
+#     fig, ax = plt.subplots(1, 1)
+#     colors = [
+#         (0.5, 0, 0.5),  # Purple
+#         (0.2, 0.8, 0.2),  # Lime
+#         (1, 0, 0),  # Red
+#         (0, 1, 0),  # Green
+#         (0, 0, 1),  # Blue
+#         (0, 1, 1),  # Cyan
+#         (1, 0, 1),  # Magenta
+#         (1, 1, 0),  # Yellow
+#         (1, 0.65, 0),  # Orange
+#     ]
+#     # display air route structures
+#     FixedAR_names = ['N884', 'M768', 'M767']
+#     for line_idx, line in enumerate(env.potential_ref_line):
+#         x, y = line.xy
+#         plt.plot(x, y, linestyle='solid', linewidth=10, color=colors[line_idx], alpha=0.2)
+#         plt.plot(line.coords[0][0], line.coords[0][1], marker=MarkerStyle("^"), color=colors[line_idx])  # start point
+#         plt.text(line.coords[0][0]+5, line.coords[0][1]+5, FixedAR_names[line_idx])
+#         plt.plot(line.coords[-1][0], line.coords[-1][1], marker='*', color=colors[line_idx])  # end point
+#
+#     # for agentIdx, agent in env.all_agents.items():
+#     #     x, y = agent.pos[0], agent.pos[1]
+#     #     heading = agent.heading * 180 / np.pi  # in degree
+#     #     img_extent = [
+#     #         x - env.all_agents[0].protectiveBound,
+#     #         x + env.all_agents[0].protectiveBound,
+#     #         y - env.all_agents[0].protectiveBound,
+#     #         y + env.all_agents[0].protectiveBound
+#     #     ]
+#     #     transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
+#     #     ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
+#     #     plt.plot(agent.ini_pos[0], agent.ini_pos[1],
+#     #              marker=MarkerStyle("^"), color=colors[agentIdx])
+#     #     # plt.text(agent.ini_pos[0], agent.ini_pos[1], agent.agent_name)
+#     #     # plot self_circle of the drone
+#     #     self_circle = Point(x, y).buffer(agent.protectiveBound, cap_style='round')
+#     #     grid_mat_Scir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None,
+#     #                                            FcColor='lightblue')  # None meaning no edge
+#     #     grid_mat_Scir.set_zorder(2)
+#     #     grid_mat_Scir.set_alpha(0.9)  # Set transparency to 0.5
+#     #     ax.add_patch(grid_mat_Scir)
+#
+#     # draw trajectory in current episode
+#     if max_time_step is None:
+#         max_time_step = len(trajectory_eachPlay)
+#
+#     # display cloud
+#     interval = 10  # Change cluster coordinates around centre every 10 frames
+#     # Calculate alpha values that will create a fading effect
+#     alpha_values = np.linspace(0.1, 1.0, max_time_step)
+#     contour_drawn = [False] * len(env.cloud_config)
+#     outline_drawn = [False] * len(env.cloud_config)
+#
+#
+#     for cloud_idx, cloud_agent in enumerate(env.cloud_config):
+#         for trajectory_idx in range(max_time_step):
+#             if trajectory_idx >= max_time_step:
+#                 break
+#             if trajectory_idx % interval == 0:
+#                 # Define the fixed center
+#                 if max_time_step == len(trajectory_eachPlay):
+#                     center_x, center_y = cloud_agent.trajectory[trajectory_idx].x, cloud_agent.trajectory[trajectory_idx].y
+#                 else:
+#                     center_x, center_y = cloud_agent.trajectory[max_time_step].x, cloud_agent.trajectory[
+#                         max_time_step].y
+#                 # ___add boundary circle for clouds---
+#                 # cloud_centre = Point(center_x, center_y)
+#                 # cloud_poly = cloud_centre.buffer(cloud_agent.radius)
+#                 # matp_poly = shapelypoly_to_matpoly(cloud_poly, False, 'blue')  # the 3rd parameter is the edge color
+#                 # matp_poly.set_zorder(5)
+#                 # ax.add_patch(matp_poly)
+#                 # Generate multiple clusters of random points within the specified range
+#                 num_points_per_cluster = 5000
+#                 num_clusters = 15
+#                 x_range = cloud_agent.spawn_cluster_pt_x_range
+#                 y_range = cloud_agent.spawn_cluster_pt_y_range
+#
+#                 cluster_centers_x = np.random.uniform(center_x + x_range[0], center_x + x_range[1], num_clusters)
+#                 cluster_centers_y = np.random.uniform(center_y + y_range[0], center_y + y_range[1], num_clusters)
+#                 cluster_centers = np.column_stack((cluster_centers_x, cluster_centers_y))
+#                 cloud_agent.cluster_centres = cluster_centers
+#
+#                 # Generate points for each cluster with controlled density
+#                 x, y = [], []
+#                 for cx, cy in cloud_agent.cluster_centres:
+#                     angles = np.random.uniform(0, 2 * np.pi, num_points_per_cluster)
+#                     radii = np.random.normal(0, 0.1, num_points_per_cluster)  # Decrease spread for higher density
+#                     x.extend(cx + radii * np.cos(angles))
+#                     y.extend(cy + radii * np.sin(angles))
+#                 x = np.array(x)
+#                 y = np.array(y)
+#                 # Create a 2D histogram to serve as the contour data
+#                 margin = 25
+#                 contour_min_x = center_x + x_range[0] - margin
+#                 contour_max_x = center_x + x_range[1] + margin
+#                 contour_min_y = center_y + y_range[0] - margin
+#                 contour_max_y = center_y + y_range[1] + margin
+#                 hist, xedges, yedges = np.histogram2d(x, y, bins=(100, 100),
+#                                                       range=[[contour_min_x, contour_max_x], [contour_min_y, contour_max_y]])
+#                 # Smooth the histogram to create a more organic shape
+#                 hist = gaussian_filter(hist, sigma=5)  # Adjust sigma for better control
+#
+#                 # Create the custom colormap from green to yellow to red
+#                 cmap = LinearSegmentedColormap.from_list('green_yellow_red', ['green', 'yellow', 'red'])
+#                 X, Y = np.meshgrid(xedges[:-1] + 0.5 * (xedges[1] - xedges[0]), yedges[:-1] + 0.5 * (yedges[1] - yedges[0]))
+#                 contour_levels = np.linspace(hist.min(), hist.max(), 10)
+#
+#                 if max_time_step == len(trajectory_eachPlay):
+#                     contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap, alpha=alpha_values[trajectory_idx])
+#                 else:
+#                     # in this loop we only required to draw once.
+#                     if contour_drawn[cloud_idx] == False:
+#                         contour = ax.contourf(X, Y, hist, levels=contour_levels, cmap=cmap)
+#                         contour_drawn[cloud_idx] = True
+#                 level_color = cmap(
+#                     (contour_levels[1] - contour_levels.min()) / (contour_levels.max() - contour_levels.min()))
+#                 # Extract the outermost contour path and overlay it with a black line
+#
+#                 if max_time_step == len(trajectory_eachPlay):
+#                     outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+#                                                    linewidths=1, alpha=alpha_values[trajectory_idx])  # this line must be present to show the boundary fading
+#                 else:
+#                     # in this loop we only required to draw once.
+#                     if outline_drawn[cloud_idx] == False:
+#                         outermost_contour = ax.contour(X, Y, hist, levels=[contour_levels[1]], colors=[level_color],
+#                                                        linewidths=1)
+#                         outline_drawn[cloud_idx] = True
+#                 # Extract the vertices of the outermost contour path
+#                 outermost_path = outermost_contour.collections[0].get_paths()[0]
+#                 vertices = outermost_path.vertices
+#                 x_clip, y_clip = vertices[:, 0], vertices[:, 1]
+#                 # ax.plot(x_clip, y_clip, color="crimson")
+#                 coordinates = np.column_stack((x_clip, y_clip))
+#                 clippath = Path(coordinates)
+#                 patch = PathPatch(clippath, facecolor='none', alpha=alpha_values[trajectory_idx])
+#                 ax.add_patch(patch)
+#                 for c in contour.collections:
+#                     c.set_clip_path(patch)
+#
+#
+#     for agentIDX, agent in env.all_agents.items():
+#         previous_position = agent.ini_pos  # Start with the agent's initial position
+#         for trajectory_idx in range(max_time_step):
+#             if trajectory_idx >= max_time_step:
+#                 break
+#             each_agent_traj = trajectory_eachPlay[trajectory_idx][agentIDX]
+#             x, y = each_agent_traj[0], each_agent_traj[1]
+#
+#             # Draw the trajectory as dotted lines starting from the initial position
+#             if trajectory_idx > 0:  # Ensure we're not drawing a redundant line from ini_pos to itself
+#                 plt.plot([previous_position[0], x], [previous_position[1], y], linestyle=(0, (1, 10)),
+#                          color=colors[agentIDX])
+#             # Update previous position
+#             previous_position = (x, y)
+#
+#             if trajectory_idx == max_time_step - 1:
+#                 # Final position with aircraft marker
+#                 heading = each_agent_traj[3] * 180 / np.pi  # Convert to degrees
+#                 img_extent = [
+#                     x - env.all_agents[0].protectiveBound,
+#                     x + env.all_agents[0].protectiveBound,
+#                     y - env.all_agents[0].protectiveBound,
+#                     y + env.all_agents[0].protectiveBound
+#                 ]
+#                 transform = Affine2D().rotate_deg_around(x, y, heading - 90) + ax.transData
+#                 if agent.ini_eta == None or agent.ini_eta < trajectory_idx:
+#                     ax.imshow(plane_img, extent=img_extent, zorder=10, transform=transform)
+#
+#                 # Draw the protective boundary around the final position
+#                 self_circle = Point(x, y).buffer(env.all_agents[0].protectiveBound, cap_style='round')
+#                 grid_mat_SCir = shapelypoly_to_matpoly(self_circle, inFill=True, Edgecolor=None, FcColor='lightblue')
+#                 grid_mat_SCir.set_zorder(2)
+#                 grid_mat_SCir.set_alpha(0.9)
+#                 if agent.ini_eta == None or agent.ini_eta < trajectory_idx:
+#                     ax.add_patch(grid_mat_SCir)
+#                     plt.text(x+3, y+3, 'a'+str(agentIDX))
+#
+#     # plt.axis('equal')
+#     plt.xlim(env.bound[0], env.bound[1])
+#     plt.ylim(env.bound[2], env.bound[3])
+#     # plt.axvline(x=env.bound[0], c="green")
+#     # plt.axvline(x=env.bound[1], c="green")
+#     # plt.axhline(y=env.bound[2], c="green")
+#     # plt.axhline(y=env.bound[3], c="green")
+#     plt.xlabel("Length (nm)")
+#     plt.ylabel("Width (nm)")
+#
+#     # Save the figure if save_path is provided
+#     if save_path:
+#         # save svg
+#         svg_path = os.path.splitext(save_path)[0] + '.svg'
+#         plt.savefig(svg_path, bbox_inches='tight')
+#         # save pdf
+#         pdf_path = os.path.splitext(save_path)[0] + '.pdf'
+#         plt.savefig(pdf_path, bbox_inches='tight')
+#         # print(f"Figure saved at {save_path}")
+#
+#     # plt.show()
 
 
 def compute_t_cpa_d_cpa_potential_col(other_pos, host_pos, other_vel, host_vel, other_bound, host_bound,
