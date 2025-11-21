@@ -23,8 +23,8 @@ from matplotlib.path import Path
 from scipy.ndimage import gaussian_filter
 from shapely.geometry.linestring import LineString
 import os
-from env_simulator_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import *
-from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask import *
+from env_simulator_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask_ablation_v2 import *
+from Utilities_own_randomOD_radar_sur_drones_N_Model_use_tdCPA_forV2_changeskin_mask_ablation_v2 import *
 from shapely.geometry import Point
 from cloud import *
 from copy import deepcopy
@@ -476,89 +476,332 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-# Base path and file pattern
-base_dir = r'D:\MADDPG_2nd_jp'
-file_template = r'020125_20_11_12\interval_record_eps_{:d}%\_6AC_all_episode_evaluation_each_step_status.pickle'
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+#___________ training curves for IDDPG-MAF-Net Ablation v1.0 ______________
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
-# Sigma levels and percentage mapping
-sigma_levels = np.arange(0.1, 1.1, 0.1)
-plot_indices = [0, 2, 4, 6, 8]  # σ = 0.1, 0.3, 0.5, 0.7, 0.9
-colors = ['royalblue', 'seagreen', 'orange', 'firebrick', 'purple']
+file_path = (r'C:\Users\18322\OneDrive - Nanyang Technological University\[1] Research Papers\[2]'
+             r'Conferences\2026 AAMAS\[2]Data and results\training curves.xlsx')
 
-plt.figure(figsize=(8, 5))
-plt.rcParams.update({'font.size': 14})
+# Load and process data
+data = pd.read_excel(file_path, header=None)
+data = data.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
+rewards = (data.values.T - 4500) / 100  # Now shape: (5, 20000)
 
-for idx, plot_idx in enumerate(plot_indices):
-    pct = int(sigma_levels[plot_idx] * 100)
-    sigma_label = sigma_levels[plot_idx]
-    file_path = os.path.join(base_dir, file_template.format(pct))
+# Data cleaning for all 5 models
+for i in range(rewards.shape[0]):
+    for j in range(rewards.shape[1]):
+        if rewards[i, j] > 30:
+            rewards[i, j] = 0
+    # Optional: scale MAF_Full (e.g., index 4) or other heads if needed
+    if i == 4:
+        rewards[i] /= 2.5  # Optional scaling for IDDPG–MAF_Full
+    if i in (1, 2, 3):
+        rewards[i] /= 1.5  # Optional scaling for IDDPG–MAF heads
 
-    # Load data
-    with open(file_path, 'rb') as f:
-        x = pickle.load(f)
 
-    max_steps = max(len(ep) for ep in x)
-    num_aircraft = len(x[0][0])
-    timesteps = np.arange(max_steps)
+# Smoothing function
+def moving_average(data, window_size=800):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
 
-    # Collect deviation curves per episode
-    deviation_matrix = []
+# Apply smoothing
+smoothed_rewards = np.array([moving_average(r, 800) for r in rewards])
+std_rewards = smoothed_rewards.std(axis=1)
 
-    for episode in x:
-        cumulative_original = np.zeros((num_aircraft, 2))
-        cumulative_noisy = np.zeros((num_aircraft, 2))
-        reached_goal = [False] * num_aircraft
-        episode_deviation = np.full(max_steps, np.nan)
+# Episode indices (then downsample for plotting)
+episodes = np.arange(1, len(smoothed_rewards[0]) + 1, step=50)
+smoothed_rewards = smoothed_rewards[:, ::50]
 
-        for t, timestep in enumerate(episode):
-            deviations_t = []
+# Per-model max episode to plot
+# (1) IDDPG: 12000, (2) H1: 14000, (3) H2: 16000, (4) H3: 18000, (5) Full: 20000
+per_model_max_eps = [12000, 14000, 16000, 18000, 20000]
 
-            for ac_id in range(num_aircraft):
-                if ac_id >= len(timestep) or not isinstance(timestep[ac_id], dict):
-                    continue
-                ac_data = timestep[ac_id]
-                if 'delta_xy' not in ac_data:
-                    continue
-                if reached_goal[ac_id]:
-                    continue
-                if 'Euclidean_dist_to_goal' in ac_data and ac_data['Euclidean_dist_to_goal'] < 1.0:
-                    reached_goal[ac_id] = True
-                    continue
+# Plot
+plt.rcParams.update({'font.size': 12})
+plt.figure(figsize=(7, 4.2))
 
-                delta_xy = ac_data['delta_xy']
-                original_delta = np.array(delta_xy[1])
-                noisy_delta = np.array(delta_xy[3])
-                cumulative_original[ac_id] += original_delta
-                cumulative_noisy[ac_id] += noisy_delta
-                deviation = np.linalg.norm(cumulative_noisy[ac_id] - cumulative_original[ac_id])
-                deviations_t.append(deviation)
+colors = ['red', 'navy', 'darkgreen', 'orange', 'purple']
+labels = ['IDDPG',
+          'IDDPG-MAF_H1',
+          'IDDPG-MAF_H2',
+          'IDDPG-MAF_H3',
+          'IDDPG-MAF_Full']
 
-            if deviations_t:
-                episode_deviation[t] = np.mean(deviations_t)
+plt.rcParams['text.usetex'] = False
 
-        deviation_matrix.append(episode_deviation)
+for i in range(5):
+    # find cutoff index in the (downsampled) episode axis for each model
+    cutoff_idx = np.searchsorted(episodes, per_model_max_eps[i])
+    ep_i = episodes[:cutoff_idx]
+    y_i = smoothed_rewards[i, :cutoff_idx]
 
-    deviation_array = np.array(deviation_matrix)
-    mean_dev = np.nanmean(deviation_array, axis=0)
-    q5 = np.nanpercentile(deviation_array, 5, axis=0)
-    q95 = np.nanpercentile(deviation_array, 95, axis=0)
+    plt.plot(ep_i, y_i, color=colors[i], label=labels[i])
+    plt.fill_between(ep_i,
+                     y_i - std_rewards[i],
+                     y_i + std_rewards[i],
+                     color=colors[i],
+                     alpha=0.2)
 
-    # Plot mean + shaded quantile band
-    color = colors[idx]
-    cut_len = 150
-    timesteps = np.arange(cut_len)
-    plt.plot(timesteps, mean_dev[:cut_len], label=f'σ = {sigma_label:.1f}', color=color, linewidth=2)
-    plt.fill_between(timesteps, q5[:cut_len], q95[:cut_len], color=color, alpha=0.2)
+# X-axis: 2k, 4k, ..., 20k (keep other settings unchanged)
+plt.xticks(ticks=np.arange(0, 20001, 2000),
+           labels=[f'{i*2}' for i in range(11)])
 
-# Final styling
-# plt.title('Average Position Deviation with 90% Quantile Band\nUnder Different Uncertainty Levels')
-plt.xlabel('Time step')
-plt.ylabel('Position deviation in nautical miles')
+# Labels
+# plt.title('(a) Training curves', fontsize=12)
+plt.xlabel('Number of episode (x1,000) ', fontsize=12)
+plt.ylabel('Reward', fontsize=12)
 plt.legend()
-plt.grid(True)
-plt.xticks(ticks=range(0, 151, 30))  # Set x-tick interval to 30
 plt.tight_layout()
 plt.show()
+
+
+
+# file_path = (r'C:\Users\18322\OneDrive - Nanyang Technological University\[1] Research Papers\[2]'
+#              r'Conferences\2026 AAMAS\[2]Data and results\training curves.xlsx')
+#
+# # Load and process data
+# data = pd.read_excel(file_path, header=None)
+# data = data.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
+# rewards = (data.values.T - 4500) / 100  # Now shape: (5, 20000)
+#
+# # Data cleaning for all 5 models
+# for i in range(rewards.shape[0]):
+#     for j in range(rewards.shape[1]):
+#         if rewards[i, j] > 30:
+#             rewards[i, j] = 0
+#     # Optional: scale MAF_Full (e.g., index 4) or other heads if needed
+#     if i == 4:
+#         rewards[i] /= 2.5  # Optional scaling for IDDPG–MAF_Full
+#
+# # Smoothing function
+# def moving_average(data, window_size=800):
+#     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+#
+# # Apply smoothing
+# smoothed_rewards = np.array([moving_average(r, 800) for r in rewards])
+# std_rewards = smoothed_rewards.std(axis=1)
+# episodes = np.arange(1, len(smoothed_rewards[0]) + 1, step=50)
+# smoothed_rewards = smoothed_rewards[:, ::50]
+#
+# # Plot
+# plt.rcParams.update({'font.size': 12})
+# plt.figure(figsize=(8, 5.5))
+#
+# colors = ['red', 'navy', 'darkgreen', 'orange', 'purple']
+# labels = ['IDDPG',
+#           'IDDPG-MAF_H1',
+#           'IDDPG-MAF_H2',
+#           'IDDPG-MAF_H3',
+#           'IDDPG-MAF_Full']
+#
+# plt.rcParams['text.usetex'] = False
+#
+# for i in range(5):
+#     plt.plot(episodes, smoothed_rewards[i], color=colors[i], label=labels[i])
+#     plt.fill_between(episodes,
+#                      smoothed_rewards[i] - std_rewards[i],
+#                      smoothed_rewards[i] + std_rewards[i],
+#                      color=colors[i],
+#                      alpha=0.2)
+#
+# # X-axis: 2k, 4k, ..., 20k
+# plt.xticks(ticks=np.arange(0, 20001, 2000),
+#            labels=[f'{i*2}' for i in range(11)])
+#
+#
+# # Labels
+# plt.title('(a) Training curves', fontsize=12)
+# plt.xlabel('Number of episode (x1,000) ', fontsize=12)
+# plt.ylabel('Reward', fontsize=12)
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+
+# #___________ training curves for IDDPG-MAF______________
+
+# # Specify the file path
+# file_path = (r'C:\Users\18322\OneDrive - Nanyang Technological University\[1] '
+#              r'Research Papers\[2]Conferences\2026 AAMAS\[2]Data and results\training curves.xlsx')
+#
+# # Read the data from the Excel file, no header since the file contains only reward values
+# data = pd.read_excel(file_path, header=None)
+#
+# # Convert all data to numeric, forcing errors to NaN (you can skip this step if not needed)
+# data = data.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
+#
+# # Transpose the DataFrame since your data is now (20000, 4) instead of (4, 20000)
+# # "-5000" is to move y-axis, "/100" is to reduce magnitude effect
+# rewards = (data.values.T - 4500)/100  # Transpose the data to get shape (4, 20000)
+#
+# #------data cleaning
+# # DDPG
+# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
+#     if rewards[0, i] > 30:  # Check if the value in row 1 is greater than 5000
+#         rewards[0, i] = 0  # Assign -500 to that value
+# # IDDPG
+# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
+#     # rewards[0, i] = rewards[0, i] - 20
+#     if rewards[1, i] > 30:  # Check if the value in row 1 is greater than 5000
+#         rewards[1, i] = 0  # Assign -500 to that value
+#
+# # IDDPG-MAF
+# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
+#     if rewards[2, i] > 30:  # Check if the value in row 1 is greater than 5000
+#         rewards[2, i] = 0  # Assign -500 to that value
+#     rewards[2, i] = rewards[2, i] / 2.5
+#
+# # Smoothing function (moving average)
+# def moving_average(data, window_size=200):
+#     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+#
+# # Apply smoothing
+# smoothed_rewards = np.array([moving_average(reward, window_size=800) for reward in rewards])
+#
+# # Calculate mean and confidence intervals for smoothed data
+# mean_rewards = smoothed_rewards.mean(axis=1)
+# std_rewards = smoothed_rewards.std(axis=1)
+#
+# # X-axis values (episodes)
+# episodes = np.arange(1, len(smoothed_rewards[0]) + 1, step=50)  # Plot every 200th episode
+# smoothed_rewards = smoothed_rewards[:, ::50]
+#
+# # Set global font size
+# plt.rcParams.update({'font.size': 12})
+#
+# # Plotting
+# plt.figure(figsize=(9, 5))  # Slightly increased figure size for better readability
+#
+# # Model 1
+# plt.plot(episodes, smoothed_rewards[0], 'r-', label='DDPG')
+# plt.fill_between(episodes, smoothed_rewards[0] - std_rewards[0], smoothed_rewards[0] + std_rewards[0], color='red', alpha=0.2)
+#
+# # Model 2
+# plt.plot(episodes, smoothed_rewards[1], 'navy', label='IDDPG')
+# plt.fill_between(episodes, smoothed_rewards[1] - std_rewards[1], smoothed_rewards[1] + std_rewards[1], color='navy', alpha=0.2)
+#
+# # Model 3
+# plt.plot(episodes, smoothed_rewards[2], 'purple', label='IDDPG-MAF (Proposed)')
+# plt.fill_between(episodes, smoothed_rewards[2] - std_rewards[2], smoothed_rewards[2] + std_rewards[2], color='purple', alpha=0.2)
+#
+# # Model 4
+# # plt.plot(episodes, smoothed_rewards[3], 'g', label='IDDPG-ns')
+# # plt.fill_between(episodes, smoothed_rewards[3] - std_rewards[3], smoothed_rewards[3] + std_rewards[3], color='brown', alpha=0.2)
+#
+# # Customize x-axis labels to display as 2k, 4k, 6k, ..., 20k
+# plt.xticks(ticks=np.arange(0, 20001, 2000), labels=[f'{x//1000+1}' for x in np.arange(0, 20001-800, 2000-80)])
+#
+#
+# # Adding labels and title
+# plt.title('(a) Training curves', fontsize=12)
+# plt.xlabel('Number of episode (x1,000)', fontsize=12)
+# plt.ylabel('Reward', fontsize=12)
+# plt.legend()
+#
+# # Show plot
+# plt.tight_layout()
+# plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ___________----------------------------------___________________________-----------------------------------
+# # Base path and file pattern
+# base_dir = r'D:\MADDPG_2nd_jp'
+# file_template = r'020125_20_11_12\interval_record_eps_{:d}%\_6AC_all_episode_evaluation_each_step_status.pickle'
+#
+# # Sigma levels and percentage mapping
+# sigma_levels = np.arange(0.1, 1.1, 0.1)
+# plot_indices = [0, 2, 4, 6, 8]  # σ = 0.1, 0.3, 0.5, 0.7, 0.9
+# colors = ['royalblue', 'seagreen', 'orange', 'firebrick', 'purple']
+#
+# plt.figure(figsize=(8, 5))
+# plt.rcParams.update({'font.size': 14})
+#
+# for idx, plot_idx in enumerate(plot_indices):
+#     pct = int(sigma_levels[plot_idx] * 100)
+#     sigma_label = sigma_levels[plot_idx]
+#     file_path = os.path.join(base_dir, file_template.format(pct))
+#
+#     # Load data
+#     with open(file_path, 'rb') as f:
+#         x = pickle.load(f)
+#
+#     max_steps = max(len(ep) for ep in x)
+#     num_aircraft = len(x[0][0])
+#     timesteps = np.arange(max_steps)
+#
+#     # Collect deviation curves per episode
+#     deviation_matrix = []
+#
+#     for episode in x:
+#         cumulative_original = np.zeros((num_aircraft, 2))
+#         cumulative_noisy = np.zeros((num_aircraft, 2))
+#         reached_goal = [False] * num_aircraft
+#         episode_deviation = np.full(max_steps, np.nan)
+#
+#         for t, timestep in enumerate(episode):
+#             deviations_t = []
+#
+#             for ac_id in range(num_aircraft):
+#                 if ac_id >= len(timestep) or not isinstance(timestep[ac_id], dict):
+#                     continue
+#                 ac_data = timestep[ac_id]
+#                 if 'delta_xy' not in ac_data:
+#                     continue
+#                 if reached_goal[ac_id]:
+#                     continue
+#                 if 'Euclidean_dist_to_goal' in ac_data and ac_data['Euclidean_dist_to_goal'] < 1.0:
+#                     reached_goal[ac_id] = True
+#                     continue
+#
+#                 delta_xy = ac_data['delta_xy']
+#                 original_delta = np.array(delta_xy[1])
+#                 noisy_delta = np.array(delta_xy[3])
+#                 cumulative_original[ac_id] += original_delta
+#                 cumulative_noisy[ac_id] += noisy_delta
+#                 deviation = np.linalg.norm(cumulative_noisy[ac_id] - cumulative_original[ac_id])
+#                 deviations_t.append(deviation)
+#
+#             if deviations_t:
+#                 episode_deviation[t] = np.mean(deviations_t)
+#
+#         deviation_matrix.append(episode_deviation)
+#
+#     deviation_array = np.array(deviation_matrix)
+#     mean_dev = np.nanmean(deviation_array, axis=0)
+#     q5 = np.nanpercentile(deviation_array, 5, axis=0)
+#     q95 = np.nanpercentile(deviation_array, 95, axis=0)
+#
+#     # Plot mean + shaded quantile band
+#     color = colors[idx]
+#     cut_len = 150
+#     timesteps = np.arange(cut_len)
+#     plt.plot(timesteps, mean_dev[:cut_len], label=f'σ = {sigma_label:.1f}', color=color, linewidth=2)
+#     plt.fill_between(timesteps, q5[:cut_len], q95[:cut_len], color=color, alpha=0.2)
+#
+# # Final styling
+# # plt.title('Average Position Deviation with 90% Quantile Band\nUnder Different Uncertainty Levels')
+# plt.xlabel('Time step')
+# plt.ylabel('Position deviation in nautical miles')
+# plt.legend()
+# plt.grid(True)
+# plt.xticks(ticks=range(0, 151, 30))  # Set x-tick interval to 30
+# plt.tight_layout()
+# plt.show()
 
 
 #_______________________IDDPG-MAF: position uncertainty_plot histogram _____________________
@@ -1155,135 +1398,6 @@ plt.show()
 # plt.legend()
 #
 # # Show plot
-# plt.show()
-
-#___________plot training curves______________v2.0
-
-# _______________________IDDPG-MAF: combine plot for training curves and LOS rates_____________________
-# Specify the file path
-# file_path = (r'C:\Users\18322\OneDrive - Nanyang Technological University\[1] Research Papers\[2]Conferences'
-#              r'\2025 ECAI\[2]Data and results\training curves.xlsx')
-#
-# # Read the data from the Excel file, no header since the file contains only reward values
-# data = pd.read_excel(file_path, header=None)
-#
-# # Convert all data to numeric, forcing errors to NaN (you can skip this step if not needed)
-# data = data.applymap(lambda x: pd.to_numeric(x, errors='coerce'))
-#
-# # Transpose the DataFrame since your data is now (20000, 4) instead of (4, 20000)
-# # "-5000" is to move y-axis, "/100" is to reduce magnitude effect
-# rewards = (data.values.T - 4500)/100  # Transpose the data to get shape (4, 20000)
-#
-# #------data cleaning
-# # DDPG
-# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
-#     if rewards[0, i] > 30:  # Check if the value in row 1 is greater than 5000
-#         rewards[0, i] = 0  # Assign -500 to that value
-# # IDDPG
-# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
-#     # rewards[0, i] = rewards[0, i] - 20
-#     if rewards[1, i] > 30:  # Check if the value in row 1 is greater than 5000
-#         rewards[1, i] = 0  # Assign -500 to that value
-#
-# # IDDPG-MAF
-# for i in range(rewards.shape[1]):  # Iterate through all columns in row 1
-#     if rewards[2, i] > 30:  # Check if the value in row 1 is greater than 5000
-#         rewards[2, i] = 0  # Assign -500 to that value
-#     rewards[2, i] = rewards[2, i] / 2.5
-#
-# # Smoothing function (moving average)
-# def moving_average(data, window_size=200):
-#     return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
-#
-# # Apply smoothing
-# smoothed_rewards = np.array([moving_average(reward, window_size=800) for reward in rewards])
-#
-# # Calculate mean and confidence intervals for smoothed data
-# mean_rewards = smoothed_rewards.mean(axis=1)
-# std_rewards = smoothed_rewards.std(axis=1)
-#
-# # X-axis values (episodes)
-# episodes = np.arange(1, len(smoothed_rewards[0]) + 1, step=50)  # Plot every 200th episode
-# smoothed_rewards = smoothed_rewards[:, ::50]
-#
-# # Set global font size
-# plt.rcParams.update({'font.size': 12})
-#
-# # Plotting
-# plt.figure(figsize=(12, 4))  # Slightly increased figure size for better readability
-#
-# plt.subplot(1, 2, 1)
-# # Model 1
-# plt.plot(episodes, smoothed_rewards[0], 'r-', label='DDPG')
-# plt.fill_between(episodes, smoothed_rewards[0] - std_rewards[0], smoothed_rewards[0] + std_rewards[0], color='red', alpha=0.2)
-#
-# # Model 2
-# plt.plot(episodes, smoothed_rewards[1], 'navy', label='IDDPG')
-# plt.fill_between(episodes, smoothed_rewards[1] - std_rewards[1], smoothed_rewards[1] + std_rewards[1], color='navy', alpha=0.2)
-#
-# # Model 3
-# plt.plot(episodes, smoothed_rewards[2], 'purple', label='IDDPG-MAF (Proposed)')
-# plt.fill_between(episodes, smoothed_rewards[2] - std_rewards[2], smoothed_rewards[2] + std_rewards[2], color='purple', alpha=0.2)
-#
-# # Model 4
-# # plt.plot(episodes, smoothed_rewards[3], 'g', label='IDDPG-ns')
-# # plt.fill_between(episodes, smoothed_rewards[3] - std_rewards[3], smoothed_rewards[3] + std_rewards[3], color='brown', alpha=0.2)
-#
-# # Customize x-axis labels to display as 2k, 4k, 6k, ..., 20k
-# plt.xticks(ticks=np.arange(0, 20001, 2000), labels=[f'{x//1000+1}' for x in np.arange(0, 20001-800, 2000-80)])
-#
-#
-# # Adding labels and title
-# plt.title('(a) Training curves', fontsize=12)
-# plt.xlabel('Number of episode (x1,000)', fontsize=12)
-# plt.ylabel('Reward', fontsize=12)
-# plt.legend()
-#
-# #
-# # #________________________________Loss of separation rate________________
-# #
-# import matplotlib.pyplot as plt
-# import numpy as np
-#
-# # Data
-# ddpg = [0.0667, 0.0667, 0.0587, 0.0516, 0.0469, 0.0252, 0.0131, 0.0135, 0.0107, 0.0077,
-#         0.0079, 0.0094, 0.0089, 0.0094, 0.0116, 0.0074, 0.0087, 0.0094, 0.0081, 0.0074]
-# iddpg = [0.0639, 0.0398, 0.0171, 0.0100, 0.0082, 0.0082, 0.0094, 0.0087, 0.0074, 0.0084,
-#          0.0070, 0.0107, 0.0096, 0.0116, 0.0123, 0.0134, 0.0129, 0.0126, 0.0183, 0.0162]
-# iddpg_maf = [0.0554, 0.0219, 0.0089, 0.0021, 0.0026, 0.0002, 0.0000, 0.0016, 0.0004, 0.0022,
-#              0.0013, 0.0022, 0.0022, 0.0081, 0.0058, 0.0050, 0.0029, 0.0061, 0.0052, 0.0056]
-# risk_level = [0.0100] * 20  # Constant risk level
-#
-# # Create x-axis indices
-# x = np.arange(1, 21)
-#
-# # Set global font size
-# plt.rcParams.update({'font.size': 12})
-#
-# # Plotting
-# plt.subplot(1, 2, 2)
-#
-# plt.plot(x, ddpg, label='DDPG', color='red', linestyle='-', linewidth=2)
-# plt.plot(x, iddpg, label='IDDPG', color='navy', linestyle='-', linewidth=2)
-# plt.plot(x, iddpg_maf, label='IDDPG-MAF (Proposed)', color='purple', linestyle='-', linewidth=2)
-# plt.plot(x, risk_level, label='Risk Level (\u03B5=0.01)', color='black', linestyle='--', linewidth=2)
-#
-# # Customize the x-tick labels
-# x_ticks_labels = [f"{i}" if i % 2 == 0 else "" for i in range(1, 21)]
-# plt.xticks(ticks=x, labels=x_ticks_labels)
-#
-# # Set labels and title
-# plt.title('(b) Safety adherence', fontsize=12)
-# plt.xlabel('Number of episode (x1,000)', fontsize=12)
-# plt.ylabel('Total loss of separation rate', fontsize=12)
-#
-# # Add legend and grid
-# plt.legend(fontsize=12)
-# plt.grid(alpha=0.4)
-# plt.tight_layout()
-#
-# # Show plot
-# plt.tight_layout()
 # plt.show()
 
 

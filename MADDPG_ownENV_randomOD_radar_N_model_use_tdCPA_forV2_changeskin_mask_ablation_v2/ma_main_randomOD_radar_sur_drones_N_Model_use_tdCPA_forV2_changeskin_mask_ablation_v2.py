@@ -87,8 +87,8 @@ def main(args):
     get_evaluation_status = True  # have figure output
     # get_evaluation_status = False  # no figure output, mainly obtain collision rate
 
-    # evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
-    evaluation_by_fixed_ar = False
+    evaluation_by_fixed_ar = True  # condition to when evaluation using fixed AR.
+    # evaluation_by_fixed_ar = False
 
     # simply_view_evaluation = True  # don't save gif
     simply_view_evaluation = False  # save gif
@@ -155,10 +155,10 @@ def main(args):
     # total_agentNum = len(pd.read_excel(env.agentConfig))
     # total_agentNum = 3
     # total_agentNum = 7
-    total_agentNum = 6
+    # total_agentNum = 6
     # total_agentNum = 4
     # total_agentNum = 5
-    # total_agentNum = 9
+    total_agentNum = 8
     # total_agentNum = 10
     # max_nei_num = 5
     # create world
@@ -344,7 +344,7 @@ def main(args):
         # args.max_episodes = 25
         # pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps\chapter_5_5_3cL_randomOD_16000'
         # pre_fix = r'D:\MADDPG_2nd_jp\190824_15_17_16\interval_record_eps'
-        pre_fix = r'D:\MADDPG_2nd_jp\020125_20_11_12\interval_record_eps'
+        pre_fix = r'D:\MADDPG_2nd_jp\280925_06_36_31\interval_record_eps'
         # episode_to_check = str(10000)
         # pre_fix = r'F:\OneDrive_NTU_PhD\OneDrive - Nanyang Technological University\DDPG_2ndJournal\dim_8_transfer_learning'
         episode_to_check = str(15000)
@@ -899,7 +899,8 @@ def main(args):
             elif args.mode == "eval":
                 png_file_name = pre_fix + '\episode_' + str(episode) + '_' + str(total_agentNum) + 'AC' + '.png'
                 path_to_save_eva_OD = pre_fix + '\_' +str(total_agentNum) + 'AC'
-
+                step_head_selection_mask = {'x':{'head1':0, 'head2':0, 'head3':0, 'mask':np.zeros((2, 10))},
+                                            'y':{'head1':0, 'head2':0, 'head3':0, 'mask':np.zeros((2, 10))}}
                 step_reward_record = [[0, 0]] * n_agents
                 # show_step_by_step = True
                 show_step_by_step = False
@@ -911,7 +912,7 @@ def main(args):
                 gru_history.append(np.array(norm_cur_state[0]))
 
                 # action, step_noise_val = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, gru_history, noisy=False) # noisy is false because we are using stochastic policy
-                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens, cur_agent_masks_record = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, env.all_agents, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
+                action, step_noise_val, cur_actor_hiddens, next_actor_hiddens, cur_agent_masks_record, step_head_selection_mask = model.choose_action(norm_cur_state, total_step, episode, step, eps_end, noise_start_level, cur_actor_hiddens, use_allNeigh_wRadar, use_selfATT_with_radar, own_obs_only, use_nearestN_neigh_wRadar, env.all_agents, step_head_selection_mask, noisy=noise_flag, use_GRU_flag=use_GRU_flag)  # noisy is false because we are using stochastic policy
 
                 # nearest_two_drones
                 next_state, norm_next_state, polygons_list, all_agent_st_points, all_agent_ed_points, all_agent_intersection_point_list, all_agent_line_collection, all_agent_mini_intersection_list, agent_masks_record_aft_act, delta_xy_with_uncert = env.step(action, step, acc_max, args, evaluation_by_episode, full_observable_critic_flag, evaluation_by_fixed_ar, include_other_AC, use_nearestN_neigh_wRadar, N_neigh)  # no heading update here
@@ -1070,7 +1071,8 @@ def main(args):
                     my_file = "F:\githubClone\LLM_MARL\MADDPG_ownENV_randomOD_radar_N_model_use_tdCPA_forV2_changeskin"
                     # view_static_traj(env, trajectory_eachPlay, png_file_name, max_time_step=30)
                     # view_static_traj(env, trajectory_eachPlay, png_file_name)
-                    # save_gif(env, trajectory_eachPlay, pre_fix, episode, episode)
+                    plot_file_name = r'D:\MADDPG_2nd_jp\280925_06_36_31\debug_remove_head2/'
+                    save_gif(env, trajectory_eachPlay, plot_file_name, episode_to_check, episode)
 
                     # if get_evaluation_status:
                     #     if simply_view_evaluation:
@@ -1237,10 +1239,10 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--scenario', default="simple_spread", type=str)
-    parser.add_argument('--max_episodes', default=20000, type=int)  # run for a total of 50000 episodes
+    parser.add_argument('--max_episodes', default=100, type=int)  # run for a total of 50000 episodes
     parser.add_argument('--algo', default="maddpg", type=str, help="commnet/bicnet/maddpg")
-    parser.add_argument('--mode', default="train", type=str, help="train/eval")
-    parser.add_argument('--episode_length', default=250, type=int)  # maximum play per episode
+    parser.add_argument('--mode', default="eval", type=str, help="train/eval")
+    parser.add_argument('--episode_length', default=200, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=120, type=int)  # maximum play per episode
     # parser.add_argument('--episode_length', default=100, type=int)  # maximum play per episode
     parser.add_argument('--memory_length', default=int(1e5), type=int)
@@ -1259,7 +1261,7 @@ if __name__ == '__main__':
     parser.add_argument('--ou_sigma', default=0.2, type=float)
     parser.add_argument('--epsilon_decay', default=10000, type=int)
     parser.add_argument('--tensorboard', default=True, action="store_true")
-    parser.add_argument("--save_interval", default=100, type=int)  # save model for every 5000 episodes
+    parser.add_argument("--save_interval", default=1000, type=int)  # save model for every 5000 episodes
     parser.add_argument("--model_episode", default=60000, type=int)
     parser.add_argument('--gru_history_length', default=10, type=int)  # original 1000
     parser.add_argument('--log_dir', default=datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+# plot_file_name = r'D:\MADDPG_2nd_jp\280925_06_36_31\debug/'
+# save_gif(env, trajectory_eachPlay, plot_file_name, episode_to_check, episode)
 import sys
 # sys.path.append("..")
 import json

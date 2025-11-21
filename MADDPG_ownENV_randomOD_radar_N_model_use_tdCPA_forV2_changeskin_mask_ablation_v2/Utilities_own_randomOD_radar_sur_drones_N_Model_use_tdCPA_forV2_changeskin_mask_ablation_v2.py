@@ -69,12 +69,12 @@ def rgb_to_hex(color):
 
 def head_selection(input_val, pretrained_inside, pretrained_all_mask, pretrained_not_inside, outside_masked_segments, all_segments_masked, inside_masked_segments, current_mask):
     head_selection_indicator = 'Not_any_head'
-    if inside_masked_segments.any():
-        head_selection_indicator = 'head1'
-        pretrained_output = pretrained_inside(input_val, current_mask)  # Shape: (batch_size,)
-        input_val = torch.where(inside_masked_segments.bool(), pretrained_output, input_val)
-        # input_val[inside_masked_segments] = pretrained_inside(input_val, current_mask).squeeze(1)
-
+    # if inside_masked_segments.any():
+    #     head_selection_indicator = 'head1'
+    #     pretrained_output = pretrained_inside(input_val, current_mask)  # Shape: (batch_size,)
+    #     input_val = torch.where(inside_masked_segments.bool(), pretrained_output, input_val)
+    #     # input_val[inside_masked_segments] = pretrained_inside(input_val, current_mask).squeeze(1)
+    #
     if outside_masked_segments.any():
         head_selection_indicator = 'head2'
         # if outside_masked_segments.sum().item() <10 and outside_masked_segments.sum().item() >1:
@@ -85,11 +85,11 @@ def head_selection(input_val, pretrained_inside, pretrained_all_mask, pretrained
                     input_val)
         # input_val[outside_masked_segments] = pretrained_not_inside(input_val, current_mask).squeeze(1)
 
-    if all_segments_masked.any():
-        head_selection_indicator = 'head3'
-        pretrained_output = pretrained_all_mask(input_val, current_mask)  # Shape: (batch_size,)
-        input_val = torch.where(all_segments_masked.bool(), pretrained_output, input_val)
-        # input_val[all_segments_masked] = pretrained_all_mask(input_val, current_mask).squeeze(1)
+    # if all_segments_masked.any():
+    #     head_selection_indicator = 'head3'
+    #     pretrained_output = pretrained_all_mask(input_val, current_mask)  # Shape: (batch_size,)
+    #     input_val = torch.where(all_segments_masked.bool(), pretrained_output, input_val)
+    #     # input_val[all_segments_masked] = pretrained_all_mask(input_val, current_mask).squeeze(1)
 
     return input_val, head_selection_indicator
 
